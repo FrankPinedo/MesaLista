@@ -6,305 +6,330 @@ document.addEventListener("DOMContentLoaded", function () {
     const btnSepararMesas = document.getElementById('btnSepararMesas');
     const btnRecargar = document.getElementById('btnRecargar');
     const btnDelivery = document.getElementById('btnDelivery');
+    const btnCerrarCuenta = document.getElementById('btnCerrarCuenta');
     
     // Función para actualizar estado de botones
-    // Función para actualizar estado de botones
-function actualizarBotones() {
-    const totalSeleccionadas = mesasSeleccionadas.length;
-    const todasLibres = mesasSeleccionadas.every(mesa => mesa.estado === 'libre');
-    const hayCombinadaSeleccionada = mesasSeleccionadas.some(mesa => mesa.combinada === 'true');
-    
-    // Botón Comanda: solo activo si hay 1 mesa seleccionada
-    btnComanda.disabled = totalSeleccionadas !== 1;
-    
-    // Botón Juntar: activo si hay 2 o más mesas libres seleccionadas
-    btnJuntarMesas.disabled = !(totalSeleccionadas >= 2 && todasLibres);
-    
-    // Botón Separar: activo si hay 1 mesa combinada seleccionada
-    btnSepararMesas.disabled = !(totalSeleccionadas === 1 && hayCombinadaSeleccionada);
-    
-    // Mostrar mensaje si hay selección múltiple
-    const mensajeMultiple = document.getElementById('mensajeSeleccionMultiple');
-    if (totalSeleccionadas > 1) {
-        mensajeMultiple.classList.remove('d-none');
-        if (!todasLibres) {
-            mensajeMultiple.textContent = '⚠️ Para juntar mesas, todas deben estar libres';
-            mensajeMultiple.classList.remove('alert-success');
-            mensajeMultiple.classList.add('alert-warning');
-        } else {
-            mensajeMultiple.textContent = '✅ Mesas seleccionadas: ' + totalSeleccionadas + '. Puedes juntarlas si están libres.';
-            mensajeMultiple.classList.remove('alert-warning');
-            mensajeMultiple.classList.add('alert-success');
-        }
-    } else {
-        mensajeMultiple.classList.add('d-none');
-    }
-}
-
-// Manejar clic en mesa
-document.querySelectorAll('.mesa-card').forEach(mesa => {
-    mesa.addEventListener('click', function(e) {
-        // Si está en modo eliminar, no seleccionar
-        if (this.classList.contains('modo-eliminar')) {
-            return;
-        }
-        
-        // Evitar selección si se hace clic en botones
-        if (e.target.closest('.btn')) {
-            return;
-        }
-        
-        // Obtener datos de la mesa
-        const mesaData = {
-            id: this.dataset.id,
-            nombre: this.dataset.mesa,
-            estado: this.dataset.estado,
-            combinada: this.dataset.combinada,
-            elemento: this
-        };
-        
-        // Toggle selección
-        if (this.classList.contains('seleccionada') || this.classList.contains('seleccionada-multiple')) {
-            // Deseleccionar
-            this.classList.remove('seleccionada', 'seleccionada-multiple');
-            mesasSeleccionadas = mesasSeleccionadas.filter(m => m.id !== mesaData.id);
-        } else {
-            // Seleccionar
-            if (mesasSeleccionadas.length === 0) {
-                this.classList.add('seleccionada');
-            } else {
-                this.classList.add('seleccionada-multiple');
-            }
-            mesasSeleccionadas.push(mesaData);
-        }
-        
-        // Actualizar clases de todas las mesas seleccionadas
-        if (mesasSeleccionadas.length > 1) {
-            mesasSeleccionadas.forEach(mesa => {
-                mesa.elemento.classList.remove('seleccionada');
-                mesa.elemento.classList.add('seleccionada-multiple');
-            });
-        } else if (mesasSeleccionadas.length === 1) {
-            mesasSeleccionadas[0].elemento.classList.remove('seleccionada-multiple');
-            mesasSeleccionadas[0].elemento.classList.add('seleccionada');
-        }
-        
-        actualizarBotones();
-    });
-});
-
-// Manejar clic en botón Comanda
-btnComanda.addEventListener('click', function() {
-    if (mesasSeleccionadas.length === 1) {
-        window.location.href = `${BASE_URL}/mozo/comanda/${mesasSeleccionadas[0].id}`;
-    }
-});
-
-// Manejar clic en botón Juntar Mesas
-btnJuntarMesas.addEventListener('click', function() {
-    if (mesasSeleccionadas.length >= 2) {
+    function actualizarBotones() {
+        const totalSeleccionadas = mesasSeleccionadas.length;
         const todasLibres = mesasSeleccionadas.every(mesa => mesa.estado === 'libre');
+        const hayCombinadaSeleccionada = mesasSeleccionadas.some(mesa => mesa.combinada === 'true');
         
-        if (!todasLibres) {
-            alert('Solo se pueden juntar mesas que estén libres');
-            return;
-        }
+        // Botón Comanda: solo activo si hay 1 mesa seleccionada
+        btnComanda.disabled = totalSeleccionadas !== 1;
         
-        // Mostrar información de las mesas seleccionadas
-        const infoDiv = document.getElementById('mesasSeleccionadasInfo');
-        const nombresJuntos = mesasSeleccionadas.map(m => m.nombre).join(' + ');
-        infoDiv.innerHTML = `<strong>${nombresJuntos}</strong>`;
+        // Botón Juntar: activo si hay 2 o más mesas libres seleccionadas
+        btnJuntarMesas.disabled = !(totalSeleccionadas >= 2 && todasLibres);
         
-        // Guardar IDs para el formulario
-        document.getElementById('mesaIds').value = JSON.stringify(mesasSeleccionadas.map(m => m.id));
+        // Botón Separar: activo si hay 1 mesa combinada seleccionada
+        btnSepararMesas.disabled = !(totalSeleccionadas === 1 && hayCombinadaSeleccionada);
         
-        // Mostrar modal
-        const modal = new bootstrap.Modal(document.getElementById('modalJuntarMesas'));
-        modal.show();
+        // Botón Cerrar Cuenta: solo activo si hay 1 mesa seleccionada que no sea libre
+        btnCerrarCuenta.disabled = !(totalSeleccionadas === 1 && mesasSeleccionadas[0].estado !== 'libre');
         
-        // Limpiar selección después de mostrar el modal
-        // (se hace después de cerrar el modal)
-    }
-});
-
-// Limpiar selección al cerrar modal de juntar mesas
-const modalJuntarMesas = document.getElementById('modalJuntarMesas');
-modalJuntarMesas.addEventListener('hidden.bs.modal', function () {
-    limpiarSeleccion();
-});
-
-// Manejar clic en botón Separar Mesas
-btnSepararMesas.addEventListener('click', function() {
-    if (mesasSeleccionadas.length === 1 && mesasSeleccionadas[0].combinada === 'true') {
-        const mesaNombre = mesasSeleccionadas[0].nombre;
-        
-        if (confirm(`¿Deseas separar la mesa ${mesaNombre}?`)) {
-            const form = document.createElement('form');
-            form.method = 'POST';
-            form.style.display = 'none';
-            
-            const input = document.createElement('input');
-            input.name = 'separar_mesa_nombre';
-            input.value = mesaNombre;
-            
-            form.appendChild(input);
-            document.body.appendChild(form);
-            form.submit();
-        }
-        
-        limpiarSeleccion();
-    }
-});
-
-// Manejar clic en botón Recargar
-btnRecargar.addEventListener('click', function() {
-    location.reload();
-});
-
-// Manejar clic en botón Delivery
-btnDelivery.addEventListener('click', function() {
-    // Ir directamente a la vista de comanda delivery
-    window.location.href = `${BASE_URL}/mozo/comanda?tipo=delivery`;
-});
-
-// Función para limpiar selección
-function limpiarSeleccion() {
-    document.querySelectorAll('.mesa-card').forEach(m => {
-        m.classList.remove('seleccionada', 'seleccionada-multiple');
-    });
-    mesasSeleccionadas = [];
-    actualizarBotones();
-    document.getElementById('mensajeSeleccionMultiple').classList.add('d-none');
-}
-// Deseleccionar mesas al hacer clic fuera
-document.addEventListener('click', function(e) {
-    if (!e.target.closest('.mesa-card') && 
-        !e.target.closest('.menu-icon-btn') && 
-        !e.target.closest('.modal') &&
-        !e.target.closest('.modal-backdrop')) {
-        limpiarSeleccion();
-    }
-});
-
-// Manejar eliminación de mesa desde el botón de basura
-document.addEventListener('click', function(e) {
-    if (e.target.closest('.btn-eliminar-mesa')) {
-        e.stopPropagation(); // Evitar que se seleccione la mesa
-        const btn = e.target.closest('.btn-eliminar-mesa');
-        document.getElementById('mesaAEliminarId').value = btn.dataset.id;
-        document.getElementById('mesaAEliminarNombre').textContent = btn.dataset.nombre;
-        const modal = new bootstrap.Modal(document.getElementById('modalEliminarMesa'));
-        modal.show();
-    }
-});
-
-// Prevenir propagación en botones de cambiar estado
-document.querySelectorAll('.btn-cambiar-estado').forEach(btn => {
-    btn.addEventListener('click', function(e) {
-        e.stopPropagation();
-    });
-});
-
-// Actualizar información de tiempo en mesas con comandas activas
-function actualizarTiempoMesas() {
-    document.querySelectorAll('.mesa-card[data-estado="esperando"]').forEach(mesa => {
-        const tiempoElem = mesa.querySelector('.tiempo-comanda');
-        if (tiempoElem) {
-            const minutos = parseInt(tiempoElem.dataset.minutos) + 1;
-            tiempoElem.dataset.minutos = minutos;
-            tiempoElem.textContent = `⏱ ${minutos} min`;
-            
-            // Cambiar color según el tiempo
-            tiempoElem.classList.remove('text-warning', 'text-danger');
-            if (minutos > 30) {
-                tiempoElem.classList.add('text-danger');
-            } else if (minutos > 15) {
-                tiempoElem.classList.add('text-warning');
-            }
-        }
-    });
-}
-
-// Sistema de notificaciones
-let notificaciones = [];
-const campanaIcon = document.querySelector('.bi-bell-fill');
-const notificationBadge = document.createElement('span');
-notificationBadge.className = 'position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger';
-notificationBadge.style.display = 'none';
-campanaIcon.parentElement.style.position = 'relative';
-campanaIcon.parentElement.appendChild(notificationBadge);
-
-// Verificar comandas listas
-function verificarComandasListas() {
-    fetch(`${BASE_URL}/mozo/verificarComandasListas`)
-        .then(response => response.json())
-        .then(data => {
-            if (data.comandasListas && data.comandasListas.length > 0) {
-                // Actualizar badge
-                notificationBadge.textContent = data.comandasListas.length;
-                notificationBadge.style.display = 'block';
-                
-                // Mostrar notificación toast
-                data.comandasListas.forEach(comanda => {
-                    if (!notificaciones.includes(comanda.id)) {
-                        notificaciones.push(comanda.id);
-                        mostrarNotificacion(`¡Comanda #${comanda.id} de ${comanda.mesa} está lista!`);
-                    }
-                });
+        // Mostrar mensaje si hay selección múltiple
+        const mensajeMultiple = document.getElementById('mensajeSeleccionMultiple');
+        if (totalSeleccionadas > 1) {
+            mensajeMultiple.classList.remove('d-none');
+            if (!todasLibres) {
+                mensajeMultiple.textContent = '⚠️ Para juntar mesas, todas deben estar libres';
+                mensajeMultiple.classList.remove('alert-success');
+                mensajeMultiple.classList.add('alert-warning');
             } else {
-                notificationBadge.style.display = 'none';
+                mensajeMultiple.textContent = '✅ Mesas seleccionadas: ' + totalSeleccionadas + '. Puedes juntarlas si están libres.';
+                mensajeMultiple.classList.remove('alert-warning');
+                mensajeMultiple.classList.add('alert-success');
             }
-        })
-        .catch(error => console.error('Error verificando comandas:', error));
-}
+        } else {
+            mensajeMultiple.classList.add('d-none');
+        }
+    }
 
-function mostrarNotificacion(mensaje) {
-    const toast = document.createElement('div');
-    toast.className = 'position-fixed bottom-0 end-0 p-3';
-    toast.style.zIndex = '1050';
-    toast.innerHTML = `
-        <div class="toast show" role="alert">
-            <div class="toast-header bg-success text-white">
-                <i class="bi bi-check-circle-fill me-2"></i>
-                <strong class="me-auto">Comanda Lista</strong>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
+    // Manejar clic en mesa
+    document.querySelectorAll('.mesa-card').forEach(mesa => {
+        mesa.addEventListener('click', function(e) {
+            // Si está en modo eliminar, no seleccionar
+            if (this.classList.contains('modo-eliminar')) {
+                return;
+            }
+            
+            // Evitar selección si se hace clic en botones
+            if (e.target.closest('.btn')) {
+                return;
+            }
+            
+            // Obtener datos de la mesa
+            const mesaData = {
+                id: this.dataset.id,
+                nombre: this.dataset.mesa,
+                estado: this.dataset.estado,
+                combinada: this.dataset.combinada,
+                elemento: this
+            };
+            
+            // Toggle selección
+            if (this.classList.contains('seleccionada') || this.classList.contains('seleccionada-multiple')) {
+                // Deseleccionar
+                this.classList.remove('seleccionada', 'seleccionada-multiple');
+                mesasSeleccionadas = mesasSeleccionadas.filter(m => m.id !== mesaData.id);
+            } else {
+                // Seleccionar
+                if (mesasSeleccionadas.length === 0) {
+                    this.classList.add('seleccionada');
+                } else {
+                    this.classList.add('seleccionada-multiple');
+                }
+                mesasSeleccionadas.push(mesaData);
+            }
+            
+            // Actualizar clases de todas las mesas seleccionadas
+            if (mesasSeleccionadas.length > 1) {
+                mesasSeleccionadas.forEach(mesa => {
+                    mesa.elemento.classList.remove('seleccionada');
+                    mesa.elemento.classList.add('seleccionada-multiple');
+                });
+            } else if (mesasSeleccionadas.length === 1) {
+                mesasSeleccionadas[0].elemento.classList.remove('seleccionada-multiple');
+                mesasSeleccionadas[0].elemento.classList.add('seleccionada');
+            }
+            
+            actualizarBotones();
+        });
+    });
+
+    // Manejar clic en botón Comanda
+    btnComanda.addEventListener('click', function() {
+        if (mesasSeleccionadas.length === 1) {
+            window.location.href = `${BASE_URL}/mozo/comanda/${mesasSeleccionadas[0].id}`;
+        }
+    });
+
+    // Manejar clic en botón Juntar Mesas
+    btnJuntarMesas.addEventListener('click', function() {
+        if (mesasSeleccionadas.length >= 2) {
+            const todasLibres = mesasSeleccionadas.every(mesa => mesa.estado === 'libre');
+            
+            if (!todasLibres) {
+                alert('Solo se pueden juntar mesas que estén libres');
+                return;
+            }
+            
+            // Mostrar información de las mesas seleccionadas
+            const infoDiv = document.getElementById('mesasSeleccionadasInfo');
+            const nombresJuntos = mesasSeleccionadas.map(m => m.nombre).join(' + ');
+            infoDiv.innerHTML = `<strong>${nombresJuntos}</strong>`;
+            
+            // Guardar IDs para el formulario
+            document.getElementById('mesaIds').value = JSON.stringify(mesasSeleccionadas.map(m => m.id));
+            
+            // Mostrar modal
+            const modal = new bootstrap.Modal(document.getElementById('modalJuntarMesas'));
+            modal.show();
+        }
+    });
+
+    // Limpiar selección al cerrar modal de juntar mesas
+    const modalJuntarMesas = document.getElementById('modalJuntarMesas');
+    modalJuntarMesas.addEventListener('hidden.bs.modal', function () {
+        limpiarSeleccion();
+    });
+
+    // Manejar clic en botón Separar Mesas
+    btnSepararMesas.addEventListener('click', function() {
+        if (mesasSeleccionadas.length === 1 && mesasSeleccionadas[0].combinada === 'true') {
+            const mesaNombre = mesasSeleccionadas[0].nombre;
+            
+            if (confirm(`¿Deseas separar la mesa ${mesaNombre}?`)) {
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.style.display = 'none';
+                
+                const input = document.createElement('input');
+                input.name = 'separar_mesa_nombre';
+                input.value = mesaNombre;
+                
+                form.appendChild(input);
+                document.body.appendChild(form);
+                form.submit();
+            }
+            
+            limpiarSeleccion();
+        }
+    });
+
+    // Manejar clic en botón Cerrar Cuenta
+    btnCerrarCuenta.addEventListener('click', function() {
+        if (mesasSeleccionadas.length === 1 && mesasSeleccionadas[0].estado !== 'libre') {
+            const mesaId = mesasSeleccionadas[0].id;
+            
+            // Verificar si hay comandas para esta mesa
+            fetch(`${BASE_URL}/mozo/verificarComandasMesa/${mesaId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.tieneComandas) {
+                        // Redirigir a la vista de cuenta
+                        window.location.href = `${BASE_URL}/mozo/mostrarCuenta/${mesaId}`;
+                    } else {
+                        alert('Esta mesa no tiene comandas activas');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error al verificar comandas de la mesa');
+                });
+        }
+    });
+
+    // Manejar clic en botón Recargar
+    btnRecargar.addEventListener('click', function() {
+        location.reload();
+    });
+
+    // Manejar clic en botón Delivery
+    btnDelivery.addEventListener('click', function() {
+        // Ir directamente a la vista de comanda delivery
+        window.location.href = `${BASE_URL}/mozo/comanda?tipo=delivery`;
+    });
+
+    // Función para limpiar selección
+    function limpiarSeleccion() {
+        document.querySelectorAll('.mesa-card').forEach(m => {
+            m.classList.remove('seleccionada', 'seleccionada-multiple');
+        });
+        mesasSeleccionadas = [];
+        actualizarBotones();
+        document.getElementById('mensajeSeleccionMultiple').classList.add('d-none');
+    }
+
+    // Deseleccionar mesas al hacer clic fuera
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.mesa-card') && 
+            !e.target.closest('.menu-icon-btn') && 
+            !e.target.closest('.modal') &&
+            !e.target.closest('.modal-backdrop')) {
+            limpiarSeleccion();
+        }
+    });
+
+    // Manejar eliminación de mesa desde el botón de basura
+    document.addEventListener('click', function(e) {
+        if (e.target.closest('.btn-eliminar-mesa')) {
+            e.stopPropagation(); // Evitar que se seleccione la mesa
+            const btn = e.target.closest('.btn-eliminar-mesa');
+            document.getElementById('mesaAEliminarId').value = btn.dataset.id;
+            document.getElementById('mesaAEliminarNombre').textContent = btn.dataset.nombre;
+            const modal = new bootstrap.Modal(document.getElementById('modalEliminarMesa'));
+            modal.show();
+        }
+    });
+
+    // Prevenir propagación en botones de cambiar estado
+    document.querySelectorAll('.btn-cambiar-estado').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.stopPropagation();
+        });
+    });
+
+    // Actualizar información de tiempo en mesas con comandas activas
+    function actualizarTiempoMesas() {
+        document.querySelectorAll('.mesa-card[data-estado="esperando"]').forEach(mesa => {
+            const tiempoElem = mesa.querySelector('.tiempo-comanda');
+            if (tiempoElem) {
+                const minutos = parseInt(tiempoElem.dataset.minutos) + 1;
+                tiempoElem.dataset.minutos = minutos;
+                tiempoElem.textContent = `⏱ ${minutos} min`;
+                
+                // Cambiar color según el tiempo
+                tiempoElem.classList.remove('text-warning', 'text-danger');
+                if (minutos > 30) {
+                    tiempoElem.classList.add('text-danger');
+                } else if (minutos > 15) {
+                    tiempoElem.classList.add('text-warning');
+                }
+            }
+        });
+    }
+
+    // Sistema de notificaciones
+    let notificaciones = [];
+    const campanaIcon = document.querySelector('.bi-bell-fill');
+    const notificationBadge = document.createElement('span');
+    notificationBadge.className = 'position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger';
+    notificationBadge.style.display = 'none';
+    campanaIcon.parentElement.style.position = 'relative';
+    campanaIcon.parentElement.appendChild(notificationBadge);
+
+    // Verificar comandas listas
+    function verificarComandasListas() {
+        fetch(`${BASE_URL}/mozo/verificarComandasListas`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.comandasListas && data.comandasListas.length > 0) {
+                    // Actualizar badge
+                    notificationBadge.textContent = data.comandasListas.length;
+                    notificationBadge.style.display = 'block';
+                    
+                    // Mostrar notificación toast
+                    data.comandasListas.forEach(comanda => {
+                        if (!notificaciones.includes(comanda.id)) {
+                            notificaciones.push(comanda.id);
+                            mostrarNotificacion(`¡Comanda #${comanda.id} de ${comanda.mesa} está lista!`);
+                        }
+                    });
+                } else {
+                    notificationBadge.style.display = 'none';
+                }
+            })
+            .catch(error => console.error('Error verificando comandas:', error));
+    }
+
+    function mostrarNotificacion(mensaje) {
+        const toast = document.createElement('div');
+        toast.className = 'position-fixed bottom-0 end-0 p-3';
+        toast.style.zIndex = '1050';
+        toast.innerHTML = `
+            <div class="toast show" role="alert">
+                <div class="toast-header bg-success text-white">
+                    <i class="bi bi-check-circle-fill me-2"></i>
+                    <strong class="me-auto">Comanda Lista</strong>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
+                </div>
+                <div class="toast-body">
+                    ${mensaje}
+                </div>
             </div>
-            <div class="toast-body">
-                ${mensaje}
-            </div>
-        </div>
-    `;
-    document.body.appendChild(toast);
-    
-    // Sonido de notificación
-    const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZijUHGWm98OScTgwOUarm7blmFgU7k9n1unEiBC13yO/eizEIHWq+8+OWT');
-    audio.play();
-    
-    setTimeout(() => toast.remove(), 5000);
-}
+        `;
+        document.body.appendChild(toast);
+        
+        // Sonido de notificación
+        const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZijUHGWm98OScTgwOUarm7blmFgU7k9n1unEiBC13yO/eizEIHWq+8+OWT');
+        audio.play();
+        
+        setTimeout(() => toast.remove(), 5000);
+    }
 
-// Agregar click en campana para ver notificaciones
-campanaIcon.addEventListener('click', function() {
-    window.location.href = `${BASE_URL}/mozo/notificaciones`;
-});
+    // Agregar click en campana para ver notificaciones
+    campanaIcon.addEventListener('click', function() {
+        window.location.href = `${BASE_URL}/mozo/notificaciones`;
+    });
 
-// Verificar cada 10 segundos
-setInterval(verificarComandasListas, 10000);
-verificarComandasListas(); // Verificar al cargar
+    // Verificar cada 10 segundos
+    setInterval(verificarComandasListas, 10000);
+    verificarComandasListas(); // Verificar al cargar
 
-// Actualizar tiempo cada minuto
-setInterval(actualizarTiempoMesas, 60000);
+    // Actualizar tiempo cada minuto
+    setInterval(actualizarTiempoMesas, 60000);
 
-// Inicializar estado de botones
-actualizarBotones();
+    // Inicializar estado de botones
+    actualizarBotones();
 
-// Debug - Verificar que los elementos existen
-console.log('Elementos cargados:', {
-    btnComanda: !!btnComanda,
-    btnJuntarMesas: !!btnJuntarMesas,
-    btnSepararMesas: !!btnSepararMesas,
-    btnRecargar: !!btnRecargar,
-    btnDelivery: !!btnDelivery,
-    totalMesas: document.querySelectorAll('.mesa-card').length
-});
+    // Debug - Verificar que los elementos existen
+    console.log('Elementos cargados:', {
+        btnComanda: !!btnComanda,
+        btnJuntarMesas: !!btnJuntarMesas,
+        btnSepararMesas: !!btnSepararMesas,
+        btnRecargar: !!btnRecargar,
+        btnDelivery: !!btnDelivery,
+        btnCerrarCuenta: !!btnCerrarCuenta,
+        totalMesas: document.querySelectorAll('.mesa-card').length
+    });
 });

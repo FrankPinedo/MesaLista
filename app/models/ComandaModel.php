@@ -366,8 +366,7 @@ class ComandaModel
         return $comandas;
     }
     
-    // Obtener comandas en estado 'listo'
-    public function obtenerComandasListas()
+      public function obtenerComandasListas()
     {
         $sql = "SELECT c.id, m.nombre as mesa
                 FROM comanda c
@@ -385,5 +384,17 @@ class ComandaModel
         }
         
         return $comandas;
+    }
+
+    public function finalizarComandasMesa($mesaId)
+    {
+        $sql = "UPDATE comanda 
+                SET estado = 'pagado' 
+                WHERE mesa_id = ? 
+                AND estado IN ('nueva', 'pendiente', 'recibido', 'listo')";
+        
+        $stmt = $this->conn->prepare($sql);
+        $stmt->bind_param("i", $mesaId);
+        return $stmt->execute();
     }
 }

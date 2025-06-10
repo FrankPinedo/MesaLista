@@ -47,25 +47,20 @@
                         let html = '<div class="list-group">';
                         data.comandasListas.forEach(comanda => {
                             html += `
-                                <div class="list-group-item list-group-item-action">
+                                <div class="list-group-item list-group-item-action" ondblclick="eliminarNotificacion(this, ${comanda.id})" style="cursor: pointer;">
                                     <div class="d-flex w-100 justify-content-between">
                                         <h5 class="mb-1">Comanda #${comanda.id}</h5>
                                         <span class="badge bg-success">LISTA</span>
                                     </div>
                                     <p class="mb-1">Mesa: ${comanda.mesa}</p>
-                                    <small>Click para marcar como entregada</small>
+                                    <small class="text-muted">Doble clic para marcar como entregada</small>
                                 </div>
                             `;
                         });
                         html += '</div>';
                         container.innerHTML = html;
                     } else {
-                        container.innerHTML = `
-                            <div class="text-center py-4">
-                                <i class="bi bi-bell-slash fs-1 text-muted"></i>
-                                <p class="text-muted mt-2">No hay notificaciones pendientes</p>
-                            </div>
-                        `;
+                        mostrarSinNotificaciones();
                     }
                 })
                 .catch(error => {
@@ -75,11 +70,67 @@
                 });
         }
         
+        function mostrarSinNotificaciones() {
+            document.getElementById('lista-notificaciones').innerHTML = `
+                <div class="text-center py-4">
+                    <i class="bi bi-bell-slash fs-1 text-muted"></i>
+                    <p class="text-muted mt-2">No hay notificaciones pendientes</p>
+                </div>
+            `;
+        }
+        
+        // Función para eliminar notificación permanentemente
+        function eliminarNotificacion(elemento, comandaId) {
+            // Animación de desvanecimiento
+            elemento.style.transition = 'all 0.3s ease';
+            elemento.style.transform = 'translateX(-100%)';
+            elemento.style.opacity = '0';
+            
+            // Marcar como entregada en el servidor
+            fetch(`${BASE_URL}/mozo/marcarEntregada`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    comanda_id: comandaId
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Remover el elemento después de la animación
+                    setTimeout(() => {
+                        elemento.remove();
+                        
+                        // Verificar si quedan notificaciones
+                        const notificacionesRestantes = document.querySelectorAll('.list-group-item').length;
+                        if (notificacionesRestantes === 0) {
+                            mostrarSinNotificaciones();
+                        }
+                    }, 300);
+                } else {
+                    // Si hay error, restaurar el elemento
+                    elemento.style.transition = '';
+                    elemento.style.transform = '';
+                    elemento.style.opacity = '';
+                    alert('Error al marcar como entregada');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                // Restaurar elemento si hay error
+                elemento.style.transition = '';
+                elemento.style.transform = '';
+                elemento.style.opacity = '';
+            });
+        }
+        
         // Cargar al inicio
         cargarNotificaciones();
         
-        // Actualizar cada 5 segundos
-        setInterval(cargarNotificaciones, 5000);
+        // Actualizar cada 10 segundos
+        setInterval(cargarNotificaciones, 10000);
     </script>
 </body>
 </html>

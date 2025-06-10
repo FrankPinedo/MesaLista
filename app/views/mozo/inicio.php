@@ -93,7 +93,7 @@
                         </button>
                     </div>
                     <div class="col text-center">
-                        <button class="menu-icon-btn">
+                        <button class="menu-icon-btn" id="btnCerrarCuenta" disabled>
                             <img src="<?= BASE_URL ?>/public/assets/img/CerrarCuenta.png" alt="Cerrar Cuenta">
                             <span>Cerrar Cuenta</span>
                         </button>

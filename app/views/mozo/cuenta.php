@@ -1,3 +1,4 @@
+<?php if (!defined('BASE_URL')) require_once __DIR__ . '/../../../config/config.php'; ?>
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -35,37 +36,38 @@
                         <p class="text-muted"><?= date('d/m/Y H:i') ?></p>
                     </div>
                     
-                    <?php foreach ($comandas as $comanda): ?>
-                        <div class="mb-3">
-                            <h6 class="text-muted">Comanda #<?= $comanda['id'] ?> - <?= $comanda['hora'] ?></h6>
-                            <table class="table table-sm">
-                                <thead>
+                    <?php 
+                    // Mostrar todos los items sin agrupar
+                    $todosItems = [];
+                    foreach ($comandas as $comanda) {
+                        if (!empty($comanda['items'])) {
+                            foreach ($comanda['items'] as $item) {
+                                $todosItems[] = $item;
+                            }
+                        }
+                    }
+                    ?>
+                    
+                    <div class="mb-3">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Cant</th>
+                                    <th>Descripción</th>
+                                    <th class="text-end">Precio</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($todosItems as $item): ?>
                                     <tr>
-                                        <th>Cant</th>
-                                        <th>Descripción</th>
-                                        <th class="text-end">Precio</th>
-                                        <th class="text-end">Subtotal</th>
+                                        <td><?= $item['cantidad'] ?></td>
+                                        <td><?= htmlspecialchars($item['nombre']) ?></td>
+                                        <td class="text-end">S/ <?= number_format($item['precio'], 2) ?></td>
                                     </tr>
-                                </thead>
-                                <tbody>
-                                    <?php if (!empty($comanda['items'])): ?>
-                                        <?php foreach ($comanda['items'] as $item): ?>
-                                            <tr>
-                                                <td><?= $item['cantidad'] ?></td>
-                                                <td><?= htmlspecialchars($item['nombre']) ?></td>
-                                                <td class="text-end">S/ <?= number_format($item['precio'], 2) ?></td>
-                                                <td class="text-end">S/ <?= number_format($item['precio'] * $item['cantidad'], 2) ?></td>
-                                            </tr>
-                                        <?php endforeach; ?>
-                                    <?php else: ?>
-                                        <tr>
-                                            <td colspan="4" class="text-center text-muted">Sin items</td>
-                                        </tr>
-                                    <?php endif; ?>
-                                </tbody>
-                            </table>
-                        </div>
-                    <?php endforeach; ?>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
                     
                     <hr>
                     <div class="d-flex justify-content-between align-items-center">
@@ -95,7 +97,29 @@
     <script>
         function procesarPago() {
             if (confirm('¿Confirmar el pago de S/ <?= number_format($total, 2) ?>?')) {
-                alert('Función de pago en desarrollo. Por ahora, cambie el estado de la mesa manualmente.');
+                // Procesar pago completo
+                fetch('<?= BASE_URL ?>/mozo/procesarPagoCompleto', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        mesa_id: <?= $mesaId ?>
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('✅ Pago exitoso');
+                        window.location.href = '<?= BASE_URL ?>/mozo';
+                    } else {
+                        alert('Error al procesar el pago');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error de conexión');
+                });
             }
         }
     </script>
