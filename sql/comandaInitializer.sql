@@ -658,3 +658,12 @@ ALTER TABLE comanda
 MODIFY COLUMN estado ENUM('nueva', 'pendiente', 'recibido', 'listo', 'entregado', 'pagado', 'cancelado') 
 DEFAULT 'nueva';
 
+-- Agregar campos a la tabla comanda
+ALTER TABLE comanda 
+ADD COLUMN tiene_cambios_pendientes BOOLEAN DEFAULT FALSE,
+ADD COLUMN ultima_actualizacion TIMESTAMP NULL;
+
+-- Agregar campo a detalle_comanda para marcar items nuevos/modificados
+ALTER TABLE detalle_comanda 
+ADD COLUMN es_cambio_pendiente BOOLEAN DEFAULT FALSE,
+ADD COLUMN version_original INT DEFAULT NULL;

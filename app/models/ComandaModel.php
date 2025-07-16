@@ -216,40 +216,41 @@ class ComandaModel
     }
 
     /* Obtiene los detalles de una comanda específica para cocina */
-    private function obtenerDetallesComanda($comandaId)
-    {
-        $items = [];
-        $sql = "SELECT dc.id, p.nombre, p.descripcion, dc.cantidad, dc.comentario,
-                       tp.nombre as tipo_producto, t.nombre as tamano
-                FROM detalle_comanda dc
-                JOIN producto p ON dc.producto_id = p.id
-                JOIN tipo_producto tp ON p.tipo_producto_id = tp.id
-                LEFT JOIN tamano t ON p.tamano_id = t.id
-                WHERE dc.comanda_id = ? AND dc.cancelado = 0";
+private function obtenerDetallesComanda($comandaId)
+{
+    $items = [];
+    $sql = "SELECT dc.id, p.nombre, p.descripcion, dc.cantidad, dc.comentario,
+                   tp.nombre as tipo_producto, t.nombre as tamano
+            FROM detalle_comanda dc
+            JOIN producto p ON dc.producto_id = p.id
+            JOIN tipo_producto tp ON p.tipo_producto_id = tp.id
+            LEFT JOIN tamano t ON p.tamano_id = t.id
+            WHERE dc.comanda_id = ? 
+            AND dc.cancelado = 0
+            AND dc.es_cambio_pendiente = FALSE"; // Solo mostrar confirmados
 
-        $stmt = $this->conn->prepare($sql);
-        if (!$stmt) {
-            error_log("Error preparando obtenerDetallesComanda: " . $this->conn->error);
-            return [];
-        }
-
-        $stmt->bind_param("i", $comandaId);
-        if (!$stmt->execute()) {
-            error_log("Error ejecutando obtenerDetallesComanda: " . $stmt->error);
-            return [];
-        }
-
-        $result = $stmt->get_result();
-        while ($item = $result->fetch_assoc()) {
-            $itemId = $item['id'];
-            $item['guarniciones'] = $this->obtenerGuarnicionesItem($itemId);
-            $item['opciones_combo'] = $this->obtenerOpcionesCombo($itemId);
-            $items[] = $item;
-        }
-
-        return $items;
+    $stmt = $this->conn->prepare($sql);
+    if (!$stmt) {
+        error_log("Error preparando obtenerDetallesComanda: " . $this->conn->error);
+        return [];
     }
 
+    $stmt->bind_param("i", $comandaId);
+    if (!$stmt->execute()) {
+        error_log("Error ejecutando obtenerDetallesComanda: " . $stmt->error);
+        return [];
+    }
+
+    $result = $stmt->get_result();
+    while ($item = $result->fetch_assoc()) {
+        $itemId = $item['id'];
+        $item['guarniciones'] = $this->obtenerGuarnicionesItem($itemId);
+        $item['opciones_combo'] = $this->obtenerOpcionesCombo($itemId);
+        $items[] = $item;
+    }
+
+    return $items;
+}
     /* Obtiene las guarniciones asociadas a un item de comanda */
     private function obtenerGuarnicionesItem($detalleComandaId)
     {
@@ -488,6 +489,170 @@ class ComandaModel
             return false;
         }
     }
+
+    // Agregar estos métodos a la clase ComandaModel
+
+// Agregar item como cambio pendiente
+public function agregarItemComandaPendiente($comandaId, $productoId, $cantidad, $comentario = '')
+{
+    // Verificar si la comanda está en estado que permite cambios pendientes
+    $comanda = $this->obtenerComandaPorId($comandaId);
+    if (!$comanda || !in_array($comanda['estado'], ['pendiente', 'recibido'])) {
+        return false;
+    }
+    
+    // Marcar la comanda como con cambios pendientes
+    $sql = "UPDATE comanda SET tiene_cambios_pendientes = TRUE WHERE id = ?";
+    $stmt = $this->conn->prepare($sql);
+    $stmt->bind_param("i", $comandaId);
+    $stmt->execute();
+    
+    // Agregar el item como cambio pendiente
+    $sql = "INSERT INTO detalle_comanda (comanda_id, producto_id, cantidad, comentario, cancelado, es_cambio_pendiente) 
+            VALUES (?, ?, ?, ?, 0, TRUE)";
+    $stmt = $this->conn->prepare($sql);
+    $stmt->bind_param("iiis", $comandaId, $productoId, $cantidad, $comentario);
+    return $stmt->execute();
+}
+
+// Obtener detalles separando los pendientes
+public function obtenerDetallesComandaConPendientes($comandaId)
+{
+    $sql = "SELECT dc.id as id_detalle, dc.cantidad, dc.comentario, dc.cancelado, dc.es_cambio_pendiente,
+            p.id as id_plato, p.nombre, p.precio, p.descripcion
+            FROM detalle_comanda dc
+            JOIN producto p ON dc.producto_id = p.id
+            WHERE dc.comanda_id = ? AND dc.cancelado = 0
+            ORDER BY dc.es_cambio_pendiente, dc.id";
+
+    $stmt = $this->conn->prepare($sql);
+    $stmt->bind_param("i", $comandaId);
+    $stmt->execute();
+    $result = $stmt->get_result();
+
+    $detalles = [
+        'confirmados' => [],
+        'pendientes' => []
+    ];
+    
+    while ($row = $result->fetch_assoc()) {
+        if ($row['es_cambio_pendiente']) {
+            $detalles['pendientes'][] = $row;
+        } else {
+            $detalles['confirmados'][] = $row;
+        }
+    }
+
+    return $detalles;
+}
+
+// Confirmar cambios pendientes
+public function confirmarCambiosPendientes($comandaId)
+{
+    $this->conn->begin_transaction();
+    
+    try {
+        // Marcar todos los items pendientes como confirmados
+        $sql = "UPDATE detalle_comanda 
+                SET es_cambio_pendiente = FALSE 
+                WHERE comanda_id = ? AND es_cambio_pendiente = TRUE";
+        $stmt = $this->conn->prepare($sql);
+        $stmt->bind_param("i", $comandaId);
+        $stmt->execute();
+        
+        // Actualizar la comanda
+        $sql = "UPDATE comanda 
+                SET tiene_cambios_pendientes = FALSE,
+                    ultima_actualizacion = NOW()
+                WHERE id = ?";
+        $stmt = $this->conn->prepare($sql);
+        $stmt->bind_param("i", $comandaId);
+        $stmt->execute();
+        
+        $this->conn->commit();
+        return true;
+    } catch (Exception $e) {
+        $this->conn->rollback();
+        return false;
+    }
+}
+
+// Cancelar cambios pendientes
+public function cancelarCambiosPendientes($comandaId)
+{
+    $this->conn->begin_transaction();
+    
+    try {
+        // Eliminar todos los items pendientes
+        $sql = "DELETE FROM detalle_comanda 
+                WHERE comanda_id = ? AND es_cambio_pendiente = TRUE";
+        $stmt = $this->conn->prepare($sql);
+        $stmt->bind_param("i", $comandaId);
+        $stmt->execute();
+        
+        // Actualizar la comanda
+        $sql = "UPDATE comanda SET tiene_cambios_pendientes = FALSE WHERE id = ?";
+        $stmt = $this->conn->prepare($sql);
+        $stmt->bind_param("i", $comandaId);
+        $stmt->execute();
+        
+        $this->conn->commit();
+        return true;
+    } catch (Exception $e) {
+        $this->conn->rollback();
+        return false;
+    }
+}
+
+// Verificar si tiene cambios pendientes
+public function tieneCambiosPendientes($comandaId)
+{
+    $sql = "SELECT tiene_cambios_pendientes FROM comanda WHERE id = ?";
+    $stmt = $this->conn->prepare($sql);
+    $stmt->bind_param("i", $comandaId);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $comanda = $result->fetch_assoc();
+    
+    return $comanda && $comanda['tiene_cambios_pendientes'];
+}
+
+// Modificar el método para cocina para que NO muestre items pendientes
+public function obtenerDetallesComandaParaCocina($comandaId)
+{
+    $items = [];
+    $sql = "SELECT dc.id, p.nombre, p.descripcion, dc.cantidad, dc.comentario,
+                   tp.nombre as tipo_producto, t.nombre as tamano
+            FROM detalle_comanda dc
+            JOIN producto p ON dc.producto_id = p.id
+            JOIN tipo_producto tp ON p.tipo_producto_id = tp.id
+            LEFT JOIN tamano t ON p.tamano_id = t.id
+            WHERE dc.comanda_id = ? 
+            AND dc.cancelado = 0 
+            AND dc.es_cambio_pendiente = FALSE"; // Solo mostrar items confirmados
+
+    $stmt = $this->conn->prepare($sql);
+    if (!$stmt) {
+        error_log("Error preparando obtenerDetallesComandaParaCocina: " . $this->conn->error);
+        return [];
+    }
+
+    $stmt->bind_param("i", $comandaId);
+    if (!$stmt->execute()) {
+        error_log("Error ejecutando obtenerDetallesComandaParaCocina: " . $stmt->error);
+        return [];
+    }
+
+    $result = $stmt->get_result();
+    while ($item = $result->fetch_assoc()) {
+        $itemId = $item['id'];
+        $item['guarniciones'] = $this->obtenerGuarnicionesItem($itemId);
+        $item['opciones_combo'] = $this->obtenerOpcionesCombo($itemId);
+        $items[] = $item;
+    }
+
+    return $items;
+}
 
     public function __destruct()
     {
