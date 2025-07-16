@@ -25,6 +25,43 @@
         rel="stylesheet"
         href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    
+    <style>
+        .cambio-pendiente {
+            background-color: #fff3cd;
+            border-left: 4px solid #ffc107;
+        }
+        
+        .cambio-pendiente td {
+            position: relative;
+        }
+        
+        .badge-pendiente {
+            font-size: 0.7rem;
+            padding: 0.2rem 0.4rem;
+        }
+        
+        .seccion-pendientes {
+            border-top: 3px solid #ffc107;
+            background-color: #fffbf0;
+        }
+        
+        .alerta-cambios-pendientes {
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.7);
+            }
+            70% {
+                box-shadow: 0 0 0 10px rgba(255, 193, 7, 0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(255, 193, 7, 0);
+            }
+        }
+    </style>
 </head>
 
 <body>
@@ -46,8 +83,6 @@
                     <span class="badge bg-info">Total Mesa: S/ <?= number_format($totalMesa, 2) ?></span>
                 </div>
             </header>
-
-            
 
             <!-- Contenido principal -->
             <div class="col-12">
@@ -83,7 +118,7 @@
                             <?php endforeach; ?>
                         <?php endif; ?>
 
-                       <!-- Comanda actual -->
+                        <!-- Comanda actual -->
                         <div class="card shadow-sm">
                             <div class="card-header <?= $puedeEditar ? 'bg-primary' : 'bg-warning' ?> text-white">
                                 <h5 class="card-title mb-0">
@@ -91,9 +126,9 @@
                                     <?php if (!$puedeEditar): ?>
                                         <i class="bi bi-lock-fill float-end"></i>
                                     <?php endif; ?>
-                                    <?php if ($comanda['estado'] === 'pendiente' && $puedeEditar): ?>
-                                        <span class="badge bg-light text-dark float-end me-2">
-                                            <i class="bi bi-pencil-fill"></i> Editando
+                                    <?php if (in_array($comanda['estado'], ['pendiente', 'recibido']) && $tieneCambiosPendientes): ?>
+                                        <span class="badge bg-warning text-dark float-end me-2 alerta-cambios-pendientes">
+                                            <i class="bi bi-exclamation-triangle-fill"></i> Cambios sin enviar
                                         </span>
                                     <?php endif; ?>
                                 </h5>
@@ -121,7 +156,7 @@
                                                             <?php endif; ?>
                                                         </td>
                                                         <td>S/ <?= number_format($detalle['precio'] * $detalle['cantidad'], 2) ?></td>
-                                                        <?php if ($puedeEditar): ?>
+                                                        <?php if ($puedeEditar && $comanda['estado'] === 'nueva'): ?>
                                                         <td>
                                                             <div class="btn-group btn-group-sm">
                                                                 <button class="btn btn-sm btn-outline-secondary comentario-btn" 
@@ -138,28 +173,74 @@
                                                         <?php endif; ?>
                                                     </tr>
                                                 <?php endforeach; ?>
-                                            <?php else: ?>
-                                                <tr>
-                                                    <td colspan="<?= $puedeEditar ? '4' : '3' ?>" class="text-center py-3">
-                                                        No hay items en la comanda
+                                            <?php endif; ?>
+                                            
+                                            <!-- Sección de cambios pendientes -->
+                                            <?php if (!empty($detallesPendientes)): ?>
+                                                <tr class="seccion-pendientes">
+                                                    <td colspan="<?= $puedeEditar ? '4' : '3' ?>" class="text-center py-2 bg-warning bg-opacity-25">
+                                                        <strong>CAMBIOS PENDIENTES DE ENVIAR A COCINA</strong>
                                                     </td>
                                                 </tr>
+                                                <?php foreach ($detallesPendientes as $pendiente): ?>
+                                                    <tr class="cambio-pendiente">
+                                                        <td>
+                                                            <?= $pendiente['cantidad'] ?>
+                                                            <span class="badge badge-pendiente bg-warning text-dark">NUEVO</span>
+                                                        </td>
+                                                        <td>
+                                                            <?= htmlspecialchars($pendiente['nombre']) ?>
+                                                            <?php if (!empty($pendiente['comentario'])): ?>
+                                                                <small class="text-muted d-block"><?= htmlspecialchars($pendiente['comentario']) ?></small>
+                                                            <?php endif; ?>
+                                                        </td>
+                                                        <td>S/ <?= number_format($pendiente['precio'] * $pendiente['cantidad'], 2) ?></td>
+                                                        <?php if ($puedeEditar): ?>
+                                                        <td>
+                                                            <button class="btn btn-sm btn-outline-danger eliminar-pendiente-btn" 
+                                                                data-id-detalle="<?= $pendiente['id_detalle'] ?>">
+                                                                <i class="bi bi-x-circle"></i>
+                                                            </button>
+                                                        </td>
+                                                        <?php endif; ?>
+                                                    </tr>
+                                                <?php endforeach; ?>
                                             <?php endif; ?>
                                         </tbody>
                                     </table>
                                 </div>
+                                
                                 <div class="p-3 border-top">
                                     <div class="d-flex justify-content-between align-items-center mb-3">
                                         <h5 class="mb-0">Total comanda:</h5>
                                         <h5 class="mb-0" id="total-comanda">S/ <?= number_format($total, 2) ?></h5>
                                     </div>
+                                    
+                                    <!-- Mostrar botones de cambios pendientes si hay -->
+                                    <?php if ($tieneCambiosPendientes && in_array($comanda['estado'], ['pendiente', 'recibido'])): ?>
+                                        <div class="alert alert-warning d-flex align-items-center mb-3" role="alert">
+                                            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                                            <div class="flex-grow-1">
+                                                Tienes cambios pendientes de enviar a cocina
+                                            </div>
+                                        </div>
+                                        <div class="d-flex gap-2 mb-3">
+                                            <button id="btn-confirmar-cambios" class="btn btn-warning flex-grow-1">
+                                                <i class="bi bi-check-circle"></i> Actualizar en Cocina
+                                            </button>
+                                            <button id="btn-cancelar-cambios" class="btn btn-outline-secondary">
+                                                <i class="bi bi-x-circle"></i> Cancelar Cambios
+                                            </button>
+                                        </div>
+                                    <?php endif; ?>
+                                    
                                     <div class="d-flex justify-content-between">
                                         <button id="btn-salir" class="btn btn-secondary">Salir</button>
                                         <?php if ($puedeEditar && $comanda['estado'] === 'nueva'): ?>
                                             <button id="btn-aceptar" class="btn btn-success">
                                                 Enviar a Cocina
                                             </button>
-                                        <?php elseif ($comanda['estado'] === 'listo' || $comanda['estado'] === 'recibido'): ?>
+                                        <?php elseif ($comanda['estado'] === 'listo' || $comanda['estado'] === 'entregado'): ?>
                                             <button id="btn-nueva-comanda" class="btn btn-primary">
                                                 Nueva Comanda
                                             </button>
@@ -178,6 +259,8 @@
                                     PRODUCTOS 
                                     <?php if (!$puedeEditar): ?>
                                         <span class="badge bg-warning text-dark">Comanda no editable</span>
+                                    <?php elseif (in_array($comanda['estado'], ['pendiente', 'recibido'])): ?>
+                                        <span class="badge bg-info">Los nuevos items se agregarán como cambios pendientes</span>
                                     <?php endif; ?>
                                 </h5>
                             </div>
@@ -247,12 +330,96 @@
                                     
                                     <!-- Tab Bebidas (similar structure) -->
                                     <div class="tab-pane fade" id="nav-bebidas" role="tabpanel" aria-labelledby="nav-bebidas-tab">
-                                        <!-- Similar estructura para bebidas -->
+                                        <div class="row row-cols-1 row-cols-md-3 g-3 p-3">
+                                            <?php if (!empty($bebidas)): ?>
+                                                <?php foreach ($bebidas as $bebida): ?>
+                                                    <div class="col">
+                                                        <div class="card h-100 producto-card <?= (!$puedeEditar || $bebida['estado'] == 0 || $bebida['stock'] <= 0) ? 'disabled bg-light' : '' ?>" 
+                                                             data-id-plato="<?= $bebida['id'] ?>" 
+                                                             data-precio="<?= $bebida['precio'] ?>" 
+                                                             data-nombre="<?= htmlspecialchars($bebida['nombre']) ?>"
+                                                             data-disponible="<?= ($puedeEditar && $bebida['estado'] == 1 && $bebida['stock'] > 0) ? '1' : '0' ?>">
+                                                            <div class="card-img-top text-center pt-2">
+                                                                <?php if (!empty($bebida['imagen']) && $bebida['imagen'] != 'sin imagen.jpg'): ?>
+                                                                    <img src="<?= BASE_URL ?>/public/uploads/<?= htmlspecialchars($bebida['imagen']) ?>" alt="<?= htmlspecialchars($bebida['nombre']) ?>" class="img-fluid rounded" style="height: 100px; object-fit: cover;">
+                                                                <?php else: ?>
+                                                                    <div class="bg-light p-4 rounded">
+                                                                        <i class="bi bi-cup-straw text-secondary" style="font-size: 3rem;"></i>
+                                                                    </div>
+                                                                <?php endif; ?>
+                                                            </div>
+                                                            <div class="card-body">
+                                                                <h6 class="card-title"><?= htmlspecialchars($bebida['nombre']) ?></h6>
+                                                                <p class="card-text small">
+                                                                    <?php if (!empty($bebida['descripcion'])): ?>
+                                                                        <?= htmlspecialchars($bebida['descripcion']) ?>
+                                                                    <?php else: ?>
+                                                                        <span class="text-muted">Sin descripción</span>
+                                                                    <?php endif; ?>
+                                                                </p>
+                                                            </div>
+                                                            <div class="card-footer d-flex justify-content-between align-items-center">
+                                                                <span class="fw-bold">S/ <?= number_format($bebida['precio'], 2) ?></span>
+                                                                <div>
+                                                                    <span class="badge <?= $bebida['stock'] > 0 ? 'bg-success' : 'bg-danger' ?>">
+                                                                        Stock: <?= $bebida['stock'] ?>
+                                                                    </span>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                <?php endforeach; ?>
+                                            <?php else: ?>
+                                                <div class="col-12 text-center py-5">
+                                                    <p class="text-muted">No hay bebidas disponibles</p>
+                                                </div>
+                                            <?php endif; ?>
+                                        </div>
                                     </div>
                                     
                                     <!-- Tab Combos (similar structure) -->
                                     <div class="tab-pane fade" id="nav-combos" role="tabpanel" aria-labelledby="nav-combos-tab">
-                                        <!-- Similar estructura para combos -->
+                                        <div class="row row-cols-1 row-cols-md-3 g-3 p-3">
+                                            <?php if (!empty($combos)): ?>
+                                                <?php foreach ($combos as $combo): ?>
+                                                    <div class="col">
+                                                        <div class="card h-100 producto-card <?= (!$puedeEditar || $combo['estado'] == 0 || $combo['stock'] <= 0) ? 'disabled bg-light' : '' ?>" 
+                                                             data-id-plato="<?= $combo['id'] ?>" 
+                                                             data-precio="<?= $combo['precio'] ?>" 
+                                                             data-nombre="<?= htmlspecialchars($combo['nombre']) ?>"
+                                                             data-disponible="<?= ($puedeEditar && $combo['estado'] == 1 && $combo['stock'] > 0) ? '1' : '0' ?>">
+                                                            <div class="card-img-top text-center pt-2">
+                                                                <div class="bg-light p-4 rounded">
+                                                                    <i class="bi bi-box-seam text-secondary" style="font-size: 3rem;"></i>
+                                                                </div>
+                                                            </div>
+                                                            <div class="card-body">
+                                                                <h6 class="card-title"><?= htmlspecialchars($combo['nombre']) ?></h6>
+                                                                <p class="card-text small">
+                                                                    <?php if (!empty($combo['descripcion'])): ?>
+                                                                        <?= htmlspecialchars($combo['descripcion']) ?>
+                                                                    <?php else: ?>
+                                                                        <span class="text-muted">Sin descripción</span>
+                                                                    <?php endif; ?>
+                                                                </p>
+                                                            </div>
+                                                            <div class="card-footer d-flex justify-content-between align-items-center">
+                                                                <span class="fw-bold">S/ <?= number_format($combo['precio'], 2) ?></span>
+                                                                <div>
+                                                                    <span class="badge <?= $combo['stock'] > 0 ? 'bg-success' : 'bg-danger' ?>">
+                                                                        Stock: <?= $combo['stock'] ?>
+                                                                    </span>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                <?php endforeach; ?>
+                                            <?php else: ?>
+                                                <div class="col-12 text-center py-5">
+                                                    <p class="text-muted">No hay combos disponibles</p>
+                                                </div>
+                                            <?php endif; ?>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -300,7 +467,7 @@
                 </div>
                 <div class="modal-body">
                     <p>¿Estás seguro que deseas enviar esta comanda a cocina?</p>
-                    <p class="text-warning"><i class="bi bi-exclamation-triangle"></i> Una vez enviada, solo podrás modificarla hasta que cocina la marque como "Recibida".</p>
+                    <p class="text-warning"><i class="bi bi-exclamation-triangle"></i> Una vez enviada, los nuevos cambios deberás confirmarlos con el botón "Actualizar en Cocina".</p>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
@@ -313,6 +480,7 @@
     <input type="hidden" id="id-comanda" value="<?= $comanda['id'] ?>">
     <input type="hidden" id="mesa-id" value="<?= $mesaId ?>">
     <input type="hidden" id="puede-editar" value="<?= $puedeEditar ? '1' : '0' ?>">
+    <input type="hidden" id="estado-comanda" value="<?= $comanda['estado'] ?>">
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.6/dist/js/bootstrap.bundle.min.js"></script>
     <script src="<?= BASE_URL ?>/public/assets/js/mozo/comanda.js"></script>

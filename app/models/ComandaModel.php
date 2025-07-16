@@ -115,26 +115,197 @@ class ComandaModel
         return $detalles;
     }
 
-    // Agregar item a la comanda
+    // Agregar estos métodos al ComandaModel.php
+
+    // Método para descontar stock al agregar item
+    public function descontarStock($productoId, $cantidad)
+    {
+        $sql = "UPDATE producto SET stock = stock - ? WHERE id = ? AND stock >= ?";
+        $stmt = $this->conn->prepare($sql);
+        $stmt->bind_param("iii", $cantidad, $productoId, $cantidad);
+        return $stmt->execute();
+    }
+
+    // Método para restaurar stock al eliminar item
+    public function restaurarStock($productoId, $cantidad)
+    {
+        $sql = "UPDATE producto SET stock = stock + ? WHERE id = ?";
+        $stmt = $this->conn->prepare($sql);
+        $stmt->bind_param("ii", $cantidad, $productoId);
+        return $stmt->execute();
+    }
+
+    // Método para verificar stock disponible
+    public function verificarStockDisponible($productoId, $cantidadSolicitada)
+    {
+        $sql = "SELECT stock FROM producto WHERE id = ?";
+        $stmt = $this->conn->prepare($sql);
+        $stmt->bind_param("i", $productoId);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $producto = $result->fetch_assoc();
+        
+        return $producto && $producto['stock'] >= $cantidadSolicitada;
+    }
+
+    // Modificar el método agregarItemComanda para incluir manejo de stock
     public function agregarItemComanda($comandaId, $productoId, $cantidad, $comentario = '')
     {
-        // NUEVO: Verificar si se puede editar
+        // Verificar si se puede editar
         if (!$this->puedeEditarComanda($comandaId)) {
             return false;
         }
         
-        // Para comandas en estado 'pendiente', marcar como "con cambios pendientes"
-        $comanda = $this->obtenerComandaPorId($comandaId);
-        if ($comanda && $comanda['estado'] === 'pendiente') {
-            // Aquí podrías agregar un campo en la BD para marcar cambios pendientes
-            // Por ahora, simplemente agregamos el item
+        // Verificar stock disponible
+        if (!$this->verificarStockDisponible($productoId, $cantidad)) {
+            return ['success' => false, 'message' => 'Stock insuficiente'];
         }
         
-        $sql = "INSERT INTO detalle_comanda (comanda_id, producto_id, cantidad, comentario, cancelado) 
-                VALUES (?, ?, ?, ?, 0)";
+        // Obtener el estado actual de la comanda
+        $comanda = $this->obtenerComandaPorId($comandaId);
+        if (!$comanda) {
+            return false;
+        }
+        
+        // Iniciar transacción
+        $this->conn->begin_transaction();
+        
+        try {
+            // Si la comanda está en estado 'pendiente' o 'recibido', agregar como cambio pendiente
+            if (in_array($comanda['estado'], ['pendiente', 'recibido'])) {
+                $resultado = $this->agregarItemComandaPendiente($comandaId, $productoId, $cantidad, $comentario);
+            } else {
+                // Si es nueva, agregar normalmente
+                $sql = "INSERT INTO detalle_comanda (comanda_id, producto_id, cantidad, comentario, cancelado, es_cambio_pendiente) 
+                        VALUES (?, ?, ?, ?, 0, FALSE)";
+                $stmt = $this->conn->prepare($sql);
+                $stmt->bind_param("iiis", $comandaId, $productoId, $cantidad, $comentario);
+                $resultado = $stmt->execute();
+            }
+            
+            if ($resultado) {
+                // Descontar stock
+                $this->descontarStock($productoId, $cantidad);
+                $this->conn->commit();
+                return ['success' => true, 'pendiente' => in_array($comanda['estado'], ['pendiente', 'recibido'])];
+            } else {
+                $this->conn->rollback();
+                return ['success' => false, 'message' => 'Error al agregar item'];
+            }
+        } catch (Exception $e) {
+            $this->conn->rollback();
+            return ['success' => false, 'message' => 'Error: ' . $e->getMessage()];
+        }
+    }
+
+    // Modificar el método eliminarDetalleComanda para restaurar stock
+    public function eliminarDetalleComanda($detalleId)
+    {
+        // Obtener información del detalle antes de eliminar
+        $sql = "SELECT dc.*, c.estado FROM detalle_comanda dc 
+                JOIN comanda c ON dc.comanda_id = c.id 
+                WHERE dc.id = ?";
         $stmt = $this->conn->prepare($sql);
-        $stmt->bind_param("iiis", $comandaId, $productoId, $cantidad, $comentario);
-        return $stmt->execute();
+        $stmt->bind_param("i", $detalleId);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $detalle = $result->fetch_assoc();
+        
+        if (!$detalle || !$this->puedeEditarComanda($detalle['comanda_id'])) {
+            return false;
+        }
+        
+        $this->conn->begin_transaction();
+        
+        try {
+            // Eliminar el detalle
+            $sql = "DELETE FROM detalle_comanda WHERE id = ?";
+            $stmt = $this->conn->prepare($sql);
+            $stmt->bind_param("i", $detalleId);
+            $resultado = $stmt->execute();
+            
+            if ($resultado) {
+                // Restaurar stock
+                $this->restaurarStock($detalle['producto_id'], $detalle['cantidad']);
+                $this->conn->commit();
+                return true;
+            } else {
+                $this->conn->rollback();
+                return false;
+            }
+        } catch (Exception $e) {
+            $this->conn->rollback();
+            return false;
+        }
+    }
+
+    // Método para obtener stock actual de productos
+    public function obtenerStockProductos($productoIds)
+    {
+        if (empty($productoIds)) {
+            return [];
+        }
+        
+        $placeholders = str_repeat('?,', count($productoIds) - 1) . '?';
+        $sql = "SELECT id, stock FROM producto WHERE id IN ($placeholders)";
+        $stmt = $this->conn->prepare($sql);
+        
+        $types = str_repeat('i', count($productoIds));
+        $stmt->bind_param($types, ...$productoIds);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        
+        $stocks = [];
+        while ($row = $result->fetch_assoc()) {
+            $stocks[$row['id']] = $row['stock'];
+        }
+        
+        return $stocks;
+    }
+
+    // Modificar cancelarCambiosPendientes para restaurar stock
+    public function cancelarCambiosPendientes($comandaId)
+    {
+        $this->conn->begin_transaction();
+        
+        try {
+            // Obtener todos los items pendientes antes de eliminarlos
+            $sql = "SELECT producto_id, cantidad FROM detalle_comanda 
+                    WHERE comanda_id = ? AND es_cambio_pendiente = TRUE";
+            $stmt = $this->conn->prepare($sql);
+            $stmt->bind_param("i", $comandaId);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            
+            $itemsPendientes = [];
+            while ($row = $result->fetch_assoc()) {
+                $itemsPendientes[] = $row;
+            }
+            
+            // Eliminar todos los items pendientes
+            $sql = "DELETE FROM detalle_comanda 
+                    WHERE comanda_id = ? AND es_cambio_pendiente = TRUE";
+            $stmt = $this->conn->prepare($sql);
+            $stmt->bind_param("i", $comandaId);
+            $stmt->execute();
+            
+            // Restaurar stock de cada item pendiente
+            foreach ($itemsPendientes as $item) {
+                $this->restaurarStock($item['producto_id'], $item['cantidad']);
+            }
+            
+            // Actualizar la comanda
+            $sql = "UPDATE comanda SET tiene_cambios_pendientes = FALSE WHERE id = ?";
+            $stmt = $this->conn->prepare($sql);
+            $stmt->bind_param("i", $comandaId);
+            $stmt->execute();
+            
+            $this->conn->commit();
+            return true;
+        } catch (Exception $e) {
+            $this->conn->rollback();
+            return false;
+        }
     }
 
     // Obtener detalle específico
@@ -157,26 +328,6 @@ class ComandaModel
         return $stmt->execute();
     }
 
-    // Eliminar item de comanda
-    public function eliminarDetalleComanda($detalleId)
-    {
-        // NUEVO: Obtener comanda_id y verificar si se puede editar
-        $sql = "SELECT comanda_id FROM detalle_comanda WHERE id = ?";
-        $stmt = $this->conn->prepare($sql);
-        $stmt->bind_param("i", $detalleId);
-        $stmt->execute();
-        $result = $stmt->get_result();
-        $detalle = $result->fetch_assoc();
-        
-        if (!$detalle || !$this->puedeEditarComanda($detalle['comanda_id'])) {
-            return false;
-        }
-        
-        $sql = "DELETE FROM detalle_comanda WHERE id = ?";
-        $stmt = $this->conn->prepare($sql);
-        $stmt->bind_param("i", $detalleId);
-        return $stmt->execute();
-    }
 
     // Actualizar estado de comanda
     public function actualizarEstadoComanda($comandaId, $estado)
@@ -577,32 +728,6 @@ public function confirmarCambiosPendientes($comandaId)
     }
 }
 
-// Cancelar cambios pendientes
-public function cancelarCambiosPendientes($comandaId)
-{
-    $this->conn->begin_transaction();
-    
-    try {
-        // Eliminar todos los items pendientes
-        $sql = "DELETE FROM detalle_comanda 
-                WHERE comanda_id = ? AND es_cambio_pendiente = TRUE";
-        $stmt = $this->conn->prepare($sql);
-        $stmt->bind_param("i", $comandaId);
-        $stmt->execute();
-        
-        // Actualizar la comanda
-        $sql = "UPDATE comanda SET tiene_cambios_pendientes = FALSE WHERE id = ?";
-        $stmt = $this->conn->prepare($sql);
-        $stmt->bind_param("i", $comandaId);
-        $stmt->execute();
-        
-        $this->conn->commit();
-        return true;
-    } catch (Exception $e) {
-        $this->conn->rollback();
-        return false;
-    }
-}
 
 // Verificar si tiene cambios pendientes
 public function tieneCambiosPendientes($comandaId)
