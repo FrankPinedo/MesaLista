@@ -47,91 +47,7 @@
                 </div>
             </header>
 
-            <!-- Agregar después del header de la comanda actual -->
-            <?php if ($tieneCambiosPendientes): ?>
-                <div class="alert alert-warning mb-2">
-                    <i class="bi bi-exclamation-triangle-fill"></i>
-                    <strong>Cambios pendientes de confirmar</strong>
-                    <div class="mt-2">
-                        <button id="btn-confirmar-cambios" class="btn btn-sm btn-success">
-                            <i class="bi bi-check-circle"></i> Actualizar en Cocina
-                        </button>
-                        <button id="btn-cancelar-cambios" class="btn btn-sm btn-danger">
-                            <i class="bi bi-x-circle"></i> Cancelar Cambios
-                        </button>
-                    </div>
-                </div>
-            <?php endif; ?>
-
-            <!-- Modificar la tabla para mostrar items pendientes -->
-            <tbody id="comanda-items">
-                <?php if (!empty($detalles) || !empty($detallesPendientes)): ?>
-                    <!-- Items confirmados -->
-                    <?php foreach ($detalles as $detalle): ?>
-                        <tr>
-                            <td><?= $detalle['cantidad'] ?></td>
-                            <td>
-                                <?= htmlspecialchars($detalle['nombre']) ?>
-                                <?php if (!empty($detalle['comentario'])): ?>
-                                    <small class="text-muted d-block"><?= htmlspecialchars($detalle['comentario']) ?></small>
-                                <?php endif; ?>
-                            </td>
-                            <td>S/ <?= number_format($detalle['precio'] * $detalle['cantidad'], 2) ?></td>
-                            <?php if ($puedeEditar): ?>
-                                <td>
-                                    <div class="btn-group btn-group-sm">
-                                        <button class="btn btn-sm btn-outline-secondary comentario-btn"
-                                            data-id-detalle="<?= $detalle['id_detalle'] ?>"
-                                            data-comentario="<?= htmlspecialchars($detalle['comentario'] ?? '') ?>">
-                                            <i class="bi bi-chat-left-text"></i>
-                                        </button>
-                                        <button class="btn btn-sm btn-outline-danger eliminar-btn"
-                                            data-id-detalle="<?= $detalle['id_detalle'] ?>">
-                                            <i class="bi bi-trash"></i>
-                                        </button>
-                                    </div>
-                                </td>
-                            <?php endif; ?>
-                        </tr>
-                    <?php endforeach; ?>
-
-                    <!-- Items pendientes -->
-                    <?php if (!empty($detallesPendientes)): ?>
-                        <tr>
-                            <td colspan="<?= $puedeEditar ? '4' : '3' ?>" class="bg-warning-subtle text-center py-1">
-                                <small><i class="bi bi-clock-history"></i> Items pendientes de confirmar</small>
-                            </td>
-                        </tr>
-                        <?php foreach ($detallesPendientes as $detalle): ?>
-                            <tr class="table-warning">
-                                <td><?= $detalle['cantidad'] ?></td>
-                                <td>
-                                    <?= htmlspecialchars($detalle['nombre']) ?>
-                                    <span class="badge bg-warning text-dark ms-2">Pendiente</span>
-                                    <?php if (!empty($detalle['comentario'])): ?>
-                                        <small class="text-muted d-block"><?= htmlspecialchars($detalle['comentario']) ?></small>
-                                    <?php endif; ?>
-                                </td>
-                                <td>S/ <?= number_format($detalle['precio'] * $detalle['cantidad'], 2) ?></td>
-                                <?php if ($puedeEditar): ?>
-                                    <td>
-                                        <button class="btn btn-sm btn-outline-danger eliminar-pendiente-btn"
-                                            data-id-detalle="<?= $detalle['id_detalle'] ?>">
-                                            <i class="bi bi-trash"></i>
-                                        </button>
-                                    </td>
-                                <?php endif; ?>
-                            </tr>
-                        <?php endforeach; ?>
-                    <?php endif; ?>
-                <?php else: ?>
-                    <tr>
-                        <td colspan="<?= $puedeEditar ? '4' : '3' ?>" class="text-center py-3">
-                            No hay items en la comanda
-                        </td>
-                    </tr>
-                <?php endif; ?>
-            </tbody>
+            
 
             <!-- Contenido principal -->
             <div class="col-12">
@@ -140,126 +56,118 @@
                     <div class="col-md-4 p-2 border-end">
                         <!-- Comandas anteriores (solo lectura) -->
                         <?php if (!empty($comandasAnteriores)): ?>
-                            <?php
+                            <?php 
                             $numComanda = 1;
-                            foreach ($comandasAnteriores as $cmdAnterior):
+                            foreach ($comandasAnteriores as $cmdAnterior): 
                                 $detallesAnt = $this->comandaModel->obtenerDetallesComandaCompletos($cmdAnterior['id']);
                                 $totalAnt = 0;
                                 foreach ($detallesAnt as $det) {
                                     $totalAnt += $det['precio'] * $det['cantidad'];
                                 }
                             ?>
-                                <div class="card shadow-sm mb-2">
-                                    <div class="card-header bg-secondary text-white">
-                                        <h6 class="card-title mb-0">
-                                            COMANDA #<?= $numComanda++ ?> - <?= strtoupper($cmdAnterior['estado']) ?>
-                                            <span class="badge bg-light text-dark float-end">S/ <?= number_format($totalAnt, 2) ?></span>
-                                        </h6>
-                                    </div>
-                                    <div class="card-body p-2">
-                                        <small class="text-muted">
-                                            <?php foreach ($detallesAnt as $det): ?>
-                                                <div><?= $det['cantidad'] ?>x <?= htmlspecialchars($det['nombre']) ?></div>
-                                            <?php endforeach; ?>
-                                        </small>
-                                    </div>
+                            <div class="card shadow-sm mb-2">
+                                <div class="card-header bg-secondary text-white">
+                                    <h6 class="card-title mb-0">
+                                        COMANDA #<?= $numComanda++ ?> - <?= strtoupper($cmdAnterior['estado']) ?>
+                                        <span class="badge bg-light text-dark float-end">S/ <?= number_format($totalAnt, 2) ?></span>
+                                    </h6>
                                 </div>
+                                <div class="card-body p-2">
+                                    <small class="text-muted">
+                                        <?php foreach ($detallesAnt as $det): ?>
+                                            <div><?= $det['cantidad'] ?>x <?= htmlspecialchars($det['nombre']) ?></div>
+                                        <?php endforeach; ?>
+                                    </small>
+                                </div>
+                            </div>
                             <?php endforeach; ?>
                         <?php endif; ?>
-                        <<<<<<< HEAD
 
-                            <!-- Comanda actual -->
-                            =======
-
-                            <!-- Comanda actual -->
-                            >>>>>>> 0a5fb383f4b41b9ff4c2dc2c615601f43fb07122
-                            <div class="card shadow-sm">
-                                <div class="card-header <?= $puedeEditar ? 'bg-primary' : 'bg-warning' ?> text-white">
-                                    <h5 class="card-title mb-0">
-                                        COMANDA #<?= $numeroComanda ?> - <?= strtoupper($comanda['estado']) ?>
-                                        <?php if (!$puedeEditar): ?>
-                                            <i class="bi bi-lock-fill float-end"></i>
-                                            <<<<<<< HEAD
-                                                <?php endif; ?>
-                                                <?php if ($comanda['estado'] === 'pendiente' && $puedeEditar): ?>
-                                                <span class="badge bg-light text-dark float-end me-2">
-                                                <i class="bi bi-pencil-fill"></i> Editando
-                                                </span>
-                                                =======
-                                                >>>>>>> 0a5fb383f4b41b9ff4c2dc2c615601f43fb07122
-                                            <?php endif; ?>
-                                    </h5>
-                                </div>
-                                <div class="card-body p-0">
-                                    <div class="table-responsive" style="max-height: 50vh;">
-                                        <table class="table table-sm table-hover mb-0">
-                                            <thead class="table-light">
-                                                <tr>
-                                                    <th>Cant</th>
-                                                    <th>Descripción</th>
-                                                    <th>Precio</th>
-                                                    <?php if ($puedeEditar): ?><th></th><?php endif; ?>
-                                                </tr>
-                                            </thead>
-                                            <tbody id="comanda-items">
-                                                <?php if (!empty($detalles)): ?>
-                                                    <?php foreach ($detalles as $detalle): ?>
-                                                        <tr>
-                                                            <td><?= $detalle['cantidad'] ?></td>
-                                                            <td>
-                                                                <?= htmlspecialchars($detalle['nombre']) ?>
-                                                                <?php if (!empty($detalle['comentario'])): ?>
-                                                                    <small class="text-muted d-block"><?= htmlspecialchars($detalle['comentario']) ?></small>
-                                                                <?php endif; ?>
-                                                            </td>
-                                                            <td>S/ <?= number_format($detalle['precio'] * $detalle['cantidad'], 2) ?></td>
-                                                            <?php if ($puedeEditar): ?>
-                                                                <td>
-                                                                    <div class="btn-group btn-group-sm">
-                                                                        <button class="btn btn-sm btn-outline-secondary comentario-btn"
-                                                                            data-id-detalle="<?= $detalle['id_detalle'] ?>"
-                                                                            data-comentario="<?= htmlspecialchars($detalle['comentario'] ?? '') ?>">
-                                                                            <i class="bi bi-chat-left-text"></i>
-                                                                        </button>
-                                                                        <button class="btn btn-sm btn-outline-danger eliminar-btn"
-                                                                            data-id-detalle="<?= $detalle['id_detalle'] ?>">
-                                                                            <i class="bi bi-trash"></i>
-                                                                        </button>
-                                                                    </div>
-                                                                </td>
-                                                            <?php endif; ?>
-                                                        </tr>
-                                                    <?php endforeach; ?>
-                                                <?php else: ?>
+                       <!-- Comanda actual -->
+                        <div class="card shadow-sm">
+                            <div class="card-header <?= $puedeEditar ? 'bg-primary' : 'bg-warning' ?> text-white">
+                                <h5 class="card-title mb-0">
+                                    COMANDA #<?= $numeroComanda ?> - <?= strtoupper($comanda['estado']) ?>
+                                    <?php if (!$puedeEditar): ?>
+                                        <i class="bi bi-lock-fill float-end"></i>
+                                    <?php endif; ?>
+                                    <?php if ($comanda['estado'] === 'pendiente' && $puedeEditar): ?>
+                                        <span class="badge bg-light text-dark float-end me-2">
+                                            <i class="bi bi-pencil-fill"></i> Editando
+                                        </span>
+                                    <?php endif; ?>
+                                </h5>
+                            </div>
+                            <div class="card-body p-0">
+                                <div class="table-responsive" style="max-height: 50vh;">
+                                    <table class="table table-sm table-hover mb-0">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>Cant</th>
+                                                <th>Descripción</th>
+                                                <th>Precio</th>
+                                                <?php if ($puedeEditar): ?><th></th><?php endif; ?>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="comanda-items">
+                                            <?php if (!empty($detalles)): ?>
+                                                <?php foreach ($detalles as $detalle): ?>
                                                     <tr>
-                                                        <td colspan="<?= $puedeEditar ? '4' : '3' ?>" class="text-center py-3">
-                                                            No hay items en la comanda
+                                                        <td><?= $detalle['cantidad'] ?></td>
+                                                        <td>
+                                                            <?= htmlspecialchars($detalle['nombre']) ?>
+                                                            <?php if (!empty($detalle['comentario'])): ?>
+                                                                <small class="text-muted d-block"><?= htmlspecialchars($detalle['comentario']) ?></small>
+                                                            <?php endif; ?>
                                                         </td>
+                                                        <td>S/ <?= number_format($detalle['precio'] * $detalle['cantidad'], 2) ?></td>
+                                                        <?php if ($puedeEditar): ?>
+                                                        <td>
+                                                            <div class="btn-group btn-group-sm">
+                                                                <button class="btn btn-sm btn-outline-secondary comentario-btn" 
+                                                                    data-id-detalle="<?= $detalle['id_detalle'] ?>"
+                                                                    data-comentario="<?= htmlspecialchars($detalle['comentario'] ?? '') ?>">
+                                                                    <i class="bi bi-chat-left-text"></i>
+                                                                </button>
+                                                                <button class="btn btn-sm btn-outline-danger eliminar-btn" 
+                                                                    data-id-detalle="<?= $detalle['id_detalle'] ?>">
+                                                                    <i class="bi bi-trash"></i>
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                        <?php endif; ?>
                                                     </tr>
-                                                <?php endif; ?>
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                    <div class="p-3 border-top">
-                                        <div class="d-flex justify-content-between align-items-center mb-3">
-                                            <h5 class="mb-0">Total comanda:</h5>
-                                            <h5 class="mb-0" id="total-comanda">S/ <?= number_format($total, 2) ?></h5>
-                                        </div>
-                                        <div class="d-flex justify-content-between">
-                                            <button id="btn-salir" class="btn btn-secondary">Salir</button>
-                                            <?php if ($puedeEditar && $comanda['estado'] === 'nueva'): ?>
-                                                <button id="btn-aceptar" class="btn btn-success">
-                                                    Enviar a Cocina
-                                                </button>
-                                            <?php elseif ($comanda['estado'] === 'listo' || $comanda['estado'] === 'recibido'): ?>
-                                                <button id="btn-nueva-comanda" class="btn btn-primary">
-                                                    Nueva Comanda
-                                                </button>
+                                                <?php endforeach; ?>
+                                            <?php else: ?>
+                                                <tr>
+                                                    <td colspan="<?= $puedeEditar ? '4' : '3' ?>" class="text-center py-3">
+                                                        No hay items en la comanda
+                                                    </td>
+                                                </tr>
                                             <?php endif; ?>
-                                        </div>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div class="p-3 border-top">
+                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                        <h5 class="mb-0">Total comanda:</h5>
+                                        <h5 class="mb-0" id="total-comanda">S/ <?= number_format($total, 2) ?></h5>
+                                    </div>
+                                    <div class="d-flex justify-content-between">
+                                        <button id="btn-salir" class="btn btn-secondary">Salir</button>
+                                        <?php if ($puedeEditar && $comanda['estado'] === 'nueva'): ?>
+                                            <button id="btn-aceptar" class="btn btn-success">
+                                                Enviar a Cocina
+                                            </button>
+                                        <?php elseif ($comanda['estado'] === 'listo' || $comanda['estado'] === 'recibido'): ?>
+                                            <button id="btn-nueva-comanda" class="btn btn-primary">
+                                                Nueva Comanda
+                                            </button>
+                                        <?php endif; ?>
                                     </div>
                                 </div>
                             </div>
+                        </div>
                     </div>
 
                     <!-- Sección Productos (derecha) -->
@@ -267,7 +175,7 @@
                         <div class="card shadow-sm">
                             <div class="card-header bg-primary text-white">
                                 <h5 class="card-title mb-0">
-                                    PRODUCTOS
+                                    PRODUCTOS 
                                     <?php if (!$puedeEditar): ?>
                                         <span class="badge bg-warning text-dark">Comanda no editable</span>
                                     <?php endif; ?>
@@ -280,7 +188,7 @@
                                     <button class="nav-link" id="nav-bebidas-tab" data-bs-toggle="tab" data-bs-target="#nav-bebidas" type="button" role="tab" aria-controls="nav-bebidas" aria-selected="false">Bebidas</button>
                                     <button class="nav-link" id="nav-combos-tab" data-bs-toggle="tab" data-bs-target="#nav-combos" type="button" role="tab" aria-controls="nav-combos" aria-selected="false">Combos</button>
                                 </div>
-
+                                
                                 <!-- Contenido de las pestañas -->
                                 <div class="tab-content" id="nav-tabContent">
                                     <!-- Tab Comida -->
@@ -289,11 +197,11 @@
                                             <?php if (!empty($platos)): ?>
                                                 <?php foreach ($platos as $plato): ?>
                                                     <div class="col">
-                                                        <div class="card h-100 producto-card <?= (!$puedeEditar || $plato['estado'] == 0 || $plato['stock'] <= 0) ? 'disabled bg-light' : '' ?>"
-                                                            data-id-plato="<?= $plato['id'] ?>"
-                                                            data-precio="<?= $plato['precio'] ?>"
-                                                            data-nombre="<?= htmlspecialchars($plato['nombre']) ?>"
-                                                            data-disponible="<?= ($puedeEditar && $plato['estado'] == 1 && $plato['stock'] > 0) ? '1' : '0' ?>">
+                                                        <div class="card h-100 producto-card <?= (!$puedeEditar || $plato['estado'] == 0 || $plato['stock'] <= 0) ? 'disabled bg-light' : '' ?>" 
+                                                             data-id-plato="<?= $plato['id'] ?>" 
+                                                             data-precio="<?= $plato['precio'] ?>" 
+                                                             data-nombre="<?= htmlspecialchars($plato['nombre']) ?>"
+                                                             data-disponible="<?= ($puedeEditar && $plato['estado'] == 1 && $plato['stock'] > 0) ? '1' : '0' ?>">
                                                             <div class="card-img-top text-center pt-2">
                                                                 <?php if (!empty($plato['imagen']) && $plato['imagen'] != 'sin imagen.jpg'): ?>
                                                                     <img src="<?= BASE_URL ?>/public/uploads/<?= htmlspecialchars($plato['imagen']) ?>" alt="<?= htmlspecialchars($plato['nombre']) ?>" class="img-fluid rounded" style="height: 100px; object-fit: cover;">
@@ -336,12 +244,12 @@
                                             <?php endif; ?>
                                         </div>
                                     </div>
-
+                                    
                                     <!-- Tab Bebidas (similar structure) -->
                                     <div class="tab-pane fade" id="nav-bebidas" role="tabpanel" aria-labelledby="nav-bebidas-tab">
                                         <!-- Similar estructura para bebidas -->
                                     </div>
-
+                                    
                                     <!-- Tab Combos (similar structure) -->
                                     <div class="tab-pane fade" id="nav-combos" role="tabpanel" aria-labelledby="nav-combos-tab">
                                         <!-- Similar estructura para combos -->
@@ -409,5 +317,4 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.6/dist/js/bootstrap.bundle.min.js"></script>
     <script src="<?= BASE_URL ?>/public/assets/js/mozo/comanda.js"></script>
 </body>
-
 </html>
