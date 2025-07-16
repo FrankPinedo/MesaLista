@@ -1,0 +1,47 @@
+body {
+  background-color: #f8f9fa;
+}
+
+h1,
+h4 {
+  color: #343a40;
+}
+
+.card {
+  border: none;
+  border-radius: 15px;
+  background: #ffffff;
+}
+
+.form-control,
+.form-select {
+  border-radius: 10px;
+}
+
+.btn-primary {
+  border-radius: 10px;
+  padding: 10px 20px;
+}
+
+.table th,
+.table td {
+  vertical-align: middle;
+}
+
+.table img {
+  width: 50px;
+  height: 50px;
+  object-fit: cover;
+  border-radius: 8px;
+}
+
+.table th {
+  background-color: #e9ecef;
+}
+
+.shadow-sm {
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.05);
+}
+.hidden_2 {
+  display: none;
+}

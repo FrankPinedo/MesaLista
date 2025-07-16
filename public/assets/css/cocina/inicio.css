@@ -1,0 +1,115 @@
+.order-card {
+  max-height: 100%;
+  min-height: 400px;
+  background-color: white;
+}
+.order-items {
+  scrollbar-width: thin;
+  scrollbar-color: #d1d5db #f3f4f6;
+}
+.order-items::-webkit-scrollbar {
+  width: 6px;
+}
+.order-items::-webkit-scrollbar-track {
+  background: #f3f4f6;
+  border-radius: 3px;
+}
+.order-items::-webkit-scrollbar-thumb {
+  background-color: #d1d5db;
+  border-radius: 3px;
+}
+.mobile-menu {
+  transition: all 0.3s ease;
+  max-height: 0;
+  overflow: hidden;
+}
+.mobile-menu.open {
+  max-height: 200px;
+}
+
+/* Estilos para el menú desplegable */
+#profile-menu {
+  transition: all 0.2s ease;
+}
+
+#mobile-profile-menu {
+  transition: all 0.3s ease;
+  max-height: 0;
+  overflow: hidden;
+}
+
+#mobile-profile-menu.open {
+  min-height: 200px;
+}
+
+/* Flecha del botón cuando el menú está abierto */
+.profile-open svg {
+  transform: rotate(180deg);
+  transition: transform 0.2s ease;
+}
+
+/* Efecto para la orden más antigua cuando llegan nuevas */
+.order-highlight {
+  animation: softPulse 1s ease-in-out 3 forwards;
+  position: relative;
+  border: 2px solid rgba(59, 130, 246, 0.4);
+  background-color: rgba(239, 246, 255, 0.5);
+  transition: background-color 0.3s ease-in-out;
+}
+
+@keyframes softPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.4);
+    background-color: rgba(239, 246, 255, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 8px 4px rgba(59, 130, 246, 0.2);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+    background-color: white;
+  }
+}
+
+/* Efecto para las comandas que no han sido recibidas */
+.blink {
+  animation: blink-yellow-animation 1s infinite;
+}
+
+@keyframes blink-yellow-animation {
+  0%,
+  100% {
+    background-color: #fff;
+  }
+  50% {
+    background-color: #fff8a7;
+  }
+}
+
+.blink-red {
+  animation: blink-red-animation 1s infinite;
+}
+
+@keyframes blink-red-animation {
+  0%,
+  100% {
+    background-color: #fff;
+  }
+  50% {
+    background-color: #ffe4e6;
+  }
+}
+
+.blink-red-intense {
+  animation: blink-red-intense-animation 1s infinite;
+}
+
+@keyframes blink-red-intense-animation {
+  0%,
+  100% {
+    background-color: #fff;
+  }
+  50% {
+    background-color: #ff8b8b;
+  }
+}

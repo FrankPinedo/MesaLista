@@ -1,0 +1,210 @@
+    /* ==== MENÚ LATERAL ==== */
+    .sidebar-mozo {
+        background-color: #8c8c8c;
+        min-height: 100vh;
+        width: 270px;
+        color: white;
+    }
+
+    .menu-icon-btn {
+        background: none;
+        border: none;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        width: 100%;
+        padding: 8px 4px;
+        transition: 0.3s ease;
+    }
+
+    .menu-icon-btn img {
+        width: 40px;
+        height: 40px;
+        object-fit: contain;
+    }
+
+    .menu-icon-btn span {
+        color: white;
+        font-size: 13px;
+        font-weight: 500;
+        text-align: center;
+    }
+
+    .menu-icon-btn:hover {
+        background-color: rgba(255, 255, 255, 0.1);
+        border-radius: 6px;
+    }
+
+    .btn.btn-danger img {
+        filter: invert(1);
+        width: 20px;
+        height: 20px;
+    }
+
+    /* ==== MESAS GENERALES ==== */
+    .mesa-btn {
+        width: 100%;
+        height: 100px;
+        font-size: 20px;
+        font-weight: bold;
+        border: 3px solid transparent;
+        border-radius: 10px;
+        transition: all 0.3s ease;
+        box-shadow: 0 0 6px rgba(0, 0, 0, 0.15);
+        white-space: normal;
+        text-align: center;
+        padding: 10px;
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .mesa-btn:hover {
+        transform: scale(1.05);
+        outline: 3px solid #00000055;
+    }
+
+    .mesa-libre {
+        background-color: #6c757d;
+        color: white;
+    }
+
+    .mesa-reservado {
+        background-color: #ffc107;
+        color: black;
+    }
+
+    .mesa-esperando {
+        background-color: #dc3545;
+        color: white;
+    }
+
+    .mesa-ocupada {
+        background-color: #f77700;
+        color: white;
+    }
+
+    .mesa-atendido {
+        background-color: #198754;
+        /* Verde */
+        color: white;
+    }
+
+    /* Clase personalizada para badge naranja */
+    .bg-orange {
+        background-color: #fd7e14 !important;
+        color: white !important;
+    }
+
+    /* ==== MESA COMBINADA ==== */
+    .mesa-combinada {
+        background-color: #ffc107;
+        color: black;
+        border: 3px solid #333;
+        box-shadow: 0 0 6px #000000;
+        padding: 0;
+        position: relative;
+    }
+
+    .mesa-combinada .mesa-combinada-interna {
+        display: flex;
+        width: 100%;
+        height: 100%;
+        font-weight: bold;
+        font-size: 18px;
+    }
+
+    .mesa-combinada-interna span {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+
+
+    /* ==== MODOS ==== */
+    .mesa-btn.modo-eliminar {
+        border: 2px solid red !important;
+        box-shadow: 0 0 8px red;
+        cursor: pointer;
+    }
+
+    .mesa-btn.seleccionable {
+        border: 2px dashed #ffc107;
+        box-shadow: 0 0 8px #ffc107;
+        cursor: pointer;
+    }
+
+    .mesa-btn.seleccionable {
+        border: 2px solid #ffc107;
+        /* amarillo sólido */
+        box-shadow: 0 0 8px #ffc107;
+        cursor: pointer;
+    }
+
+
+    /* ==== MENSAJES === */
+    #mensajeEliminarMesa,
+    #mensajeJuntarMesas {
+        position: fixed;
+        top: 10px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 1050;
+        width: auto;
+        padding: 12px 24px;
+        font-weight: bold;
+        font-size: 14px;
+    }
+
+    /* ==== RESPONSIVE ==== */
+    @media (max-width: 768px) {
+        .mesa-btn {
+            height: 80px;
+            font-size: 16px;
+        }
+
+        .menu-icon-btn img {
+            width: 32px;
+            height: 32px;
+        }
+
+        .menu-icon-btn span {
+            font-size: 11px;
+        }
+
+        .sidebar-mozo {
+            width: 100%;
+            min-height: unset;
+        }
+
+        .mesa-combinada .mesa-combinada-interna {
+            flex-direction: column;
+            font-size: 14px;
+        }
+
+        .mesa-combinada .divisor-central {
+            width: 6px;
+            background-color: white;
+            height: 90%;
+            position: absolute;
+            top: 5%;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1;
+            border-radius: 4px;
+        }
+
+    }
+
+    /* ==== MODO SEPARAR MESAS ==== */
+    .mesa-btn.modo-separar {
+        border: 2px solid #0d6efd !important;
+        /* azul Bootstrap */
+        box-shadow: 0 0 8px #0d6efd;
+        cursor: pointer;
+    }
