@@ -41,11 +41,12 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   });
 
-  // Función para agregar producto con validación de stock
   function agregarProductoComanda(idPlato, nombre, precio, comentario = "") {
+    const estadoComanda = document.getElementById("estado-comanda")?.value || 'nueva';
+    
     if (!puedeEditar) {
-      mostrarAlerta("Esta comanda no se puede editar", "warning");
-      return;
+        mostrarAlerta("Esta comanda no se puede editar", "warning");
+        return;
     }
     
     // Verificar stock antes de agregar
@@ -53,49 +54,54 @@ document.addEventListener("DOMContentLoaded", function () {
     const stockActual = parseInt(card.querySelector('.badge').textContent.replace('Stock: ', ''));
     
     if (stockActual <= 0) {
-      mostrarAlerta("No hay stock disponible para este producto", "danger");
-      return;
+        mostrarAlerta("No hay stock disponible para este producto", "danger");
+        return;
     }
     
     fetch(`${BASE_URL}/mozo/agregarItem`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        id_comanda: idComanda,
-        id_plato: idPlato,
-        cantidad: 1,
-        comentario: comentario,
-      }),
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+            id_comanda: idComanda,
+            id_plato: idPlato,
+            cantidad: 1,
+            comentario: comentario,
+        }),
     })
-      .then((response) => response.json())
-      .then((data) => {
+    .then((response) => response.json())
+    .then((data) => {
         if (data.success) {
-          actualizarComanda();
-          
-          // Actualizar stock localmente de inmediato
-          actualizarStockLocal(idPlato, -1);
-          
-          if (data.pendiente) {
-            mostrarAlerta("Producto agregado como cambio pendiente. Presiona 'Actualizar en Cocina' para confirmar.", "info");
-            // Mostrar botones de cambios pendientes
-            mostrarBotonesCambiosPendientes(true);
-          } else {
-            mostrarAlerta("Producto agregado", "success");
-          }
-          
-          // Actualizar todos los stocks después de un pequeño delay
-          setTimeout(actualizarTodosLosStocks, 500);
+            actualizarComanda();
+            
+            // Actualizar stock localmente
+            actualizarStockLocal(idPlato, -1);
+            
+            if (data.pendiente) {
+                // Si la comanda está en estado pendiente, los nuevos items son cambios pendientes
+                if (estadoComanda === 'pendiente') {
+                    mostrarAlerta("Producto agregado como cambio pendiente. Presiona 'Actualizar en Cocina' para confirmar.", "info");
+                } else {
+                    mostrarAlerta("Producto agregado", "success");
+                }
+                // Mostrar botones de cambios pendientes si hay
+                mostrarBotonesCambiosPendientes(true);
+            } else {
+                mostrarAlerta("Producto agregado", "success");
+            }
+            
+            // Actualizar todos los stocks
+            setTimeout(actualizarTodosLosStocks, 500);
         } else {
-          mostrarAlerta(data.message || "Error al agregar producto", "danger");
+            mostrarAlerta(data.message || "Error al agregar producto", "danger");
         }
-      })
-      .catch((error) => {
+    })
+    .catch((error) => {
         console.error("Error:", error);
         mostrarAlerta("Error de conexión", "danger");
-      });
-  }
+    });
+}
 
   // Función para actualizar stock localmente
   function actualizarStockLocal(productoId, cambio) {
@@ -571,15 +577,24 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   // Botón Nueva Comanda
-  const btnNuevaComanda = document.getElementById("btn-nueva-comanda");
-  if (btnNuevaComanda) {
+  // Alrededor de la línea 730, modifica el evento del botón Nueva Comanda
+const btnNuevaComanda = document.getElementById("btn-nueva-comanda");
+if (btnNuevaComanda) {
     btnNuevaComanda.addEventListener("click", function () {
-      if (confirm("¿Deseas crear una nueva comanda para esta mesa?")) {
         const mesaId = document.getElementById("mesa-id").value;
-        window.location.href = `${BASE_URL}/mozo/comanda/${mesaId}`;
-      }
+        
+        if (mesaId && mesaId !== 'null') {
+            // Si hay mesa, crear nueva comanda para esa mesa
+            if (confirm("¿Deseas crear una nueva comanda para esta mesa?")) {
+                // Forzar recarga para obtener nueva comanda
+                window.location.href = `${BASE_URL}/mozo/comanda/${mesaId}?nueva=1`;
+            }
+        } else {
+            // Si es delivery, ir a nueva comanda delivery
+            window.location.href = `${BASE_URL}/mozo/comanda?tipo=delivery`;
+        }
     });
-  }
+}
 
   // Botón Aceptar - Enviar a cocina
   if (btnAceptar) {

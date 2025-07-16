@@ -44,6 +44,12 @@ class ProductoModel
         $stmt = $this->db->query("SELECT COUNT(*) FROM guarnicion");
         return $stmt->fetchColumn();
     }
+    public function obtenerProductoPorId($id)
+{
+    $stmt = $this->db->prepare("SELECT * FROM producto WHERE id = ?");
+    $stmt->execute([$id]);
+    return $stmt->fetch(PDO::FETCH_ASSOC);
+}
     public function insertarGuarnicion($data)
     {
         $stmt = $this->db->prepare("INSERT INTO guarnicion (nombre, descripcion, precio, estado, stock, imagen) 

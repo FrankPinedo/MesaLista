@@ -120,11 +120,16 @@
 
                         <!-- Comanda actual -->
                         <div class="card shadow-sm">
-                            <div class="card-header <?= $puedeEditar ? 'bg-primary' : 'bg-warning' ?> text-white">
+                            <div class="card-header <?= $comanda['estado'] === 'nueva' ? 'bg-primary' : ($comanda['estado'] === 'pendiente' ? 'bg-info' : 'bg-warning') ?> text-white">
                                 <h5 class="card-title mb-0">
                                     COMANDA #<?= $numeroComanda ?> - <?= strtoupper($comanda['estado']) ?>
                                     <?php if (!$puedeEditar): ?>
                                         <i class="bi bi-lock-fill float-end"></i>
+                                    <?php endif; ?>
+                                    <?php if ($comanda['estado'] === 'pendiente'): ?>
+                                        <span class="badge bg-light text-dark float-end me-2">
+                                            <i class="bi bi-clock-history"></i> En cocina
+                                        </span>
                                     <?php endif; ?>
                                     <?php if (in_array($comanda['estado'], ['pendiente', 'recibido']) && $tieneCambiosPendientes): ?>
                                         <span class="badge bg-warning text-dark float-end me-2 alerta-cambios-pendientes">
@@ -141,7 +146,9 @@
                                                 <th>Cant</th>
                                                 <th>Descripción</th>
                                                 <th>Precio</th>
-                                                <?php if ($puedeEditar): ?><th></th><?php endif; ?>
+                                                <?php if ($puedeEditar || $comanda['estado'] === 'nueva'): ?>
+                                                    <th>Acciones</th>
+                                                <?php endif; ?>
                                             </tr>
                                         </thead>
                                         <tbody id="comanda-items">
@@ -156,18 +163,23 @@
                                                             <?php endif; ?>
                                                         </td>
                                                         <td>S/ <?= number_format($detalle['precio'] * $detalle['cantidad'], 2) ?></td>
-                                                        <?php if ($puedeEditar && $comanda['estado'] === 'nueva'): ?>
+                                                        <?php if ($puedeEditar): ?>
                                                         <td>
                                                             <div class="btn-group btn-group-sm">
-                                                                <button class="btn btn-sm btn-outline-secondary comentario-btn" 
-                                                                    data-id-detalle="<?= $detalle['id_detalle'] ?>"
-                                                                    data-comentario="<?= htmlspecialchars($detalle['comentario'] ?? '') ?>">
-                                                                    <i class="bi bi-chat-left-text"></i>
-                                                                </button>
-                                                                <button class="btn btn-sm btn-outline-danger eliminar-btn" 
-                                                                    data-id-detalle="<?= $detalle['id_detalle'] ?>">
-                                                                    <i class="bi bi-trash"></i>
-                                                                </button>
+                                                                <?php if ($comanda['estado'] === 'nueva' || empty($detalle['id_detalle'])): ?>
+                                                                    <button class="btn btn-sm btn-outline-secondary comentario-btn" 
+                                                                        data-id-detalle="<?= $detalle['id_detalle'] ?>"
+                                                                        data-comentario="<?= htmlspecialchars($detalle['comentario'] ?? '') ?>">
+                                                                        <i class="bi bi-chat-left-text"></i>
+                                                                    </button>
+                                                                    <button class="btn btn-sm btn-outline-danger eliminar-btn" 
+                                                                        data-id-detalle="<?= $detalle['id_detalle'] ?>"
+                                                                        data-producto-id="<?= $detalle['id_plato'] ?>">
+                                                                        <i class="bi bi-trash"></i>
+                                                                    </button>
+                                                                <?php else: ?>
+                                                                    <small class="text-muted">Confirmado</small>
+                                                                <?php endif; ?>
                                                             </div>
                                                         </td>
                                                         <?php endif; ?>
@@ -198,7 +210,8 @@
                                                         <?php if ($puedeEditar): ?>
                                                         <td>
                                                             <button class="btn btn-sm btn-outline-danger eliminar-pendiente-btn" 
-                                                                data-id-detalle="<?= $pendiente['id_detalle'] ?>">
+                                                                data-id-detalle="<?= $pendiente['id_detalle'] ?>"
+                                                                data-producto-id="<?= $pendiente['id_plato'] ?>">
                                                                 <i class="bi bi-x-circle"></i>
                                                             </button>
                                                         </td>
@@ -217,7 +230,7 @@
                                     </div>
                                     
                                     <!-- Mostrar botones de cambios pendientes si hay -->
-                                    <?php if ($tieneCambiosPendientes && in_array($comanda['estado'], ['pendiente', 'recibido'])): ?>
+                                    <?php if ($tieneCambiosPendientes && $comanda['estado'] === 'pendiente'): ?>
                                         <div class="alert alert-warning d-flex align-items-center mb-3" role="alert">
                                             <i class="bi bi-exclamation-triangle-fill me-2"></i>
                                             <div class="flex-grow-1">
@@ -236,13 +249,23 @@
                                     
                                     <div class="d-flex justify-content-between">
                                         <button id="btn-salir" class="btn btn-secondary">Salir</button>
-                                        <?php if ($puedeEditar && $comanda['estado'] === 'nueva'): ?>
+                                        
+                                        <?php if ($comanda['estado'] === 'nueva'): ?>
+                                            <!-- Comanda nueva, se puede enviar a cocina -->
                                             <button id="btn-aceptar" class="btn btn-success">
-                                                Enviar a Cocina
+                                                <i class="bi bi-send"></i> Enviar a Cocina
                                             </button>
-                                        <?php elseif ($comanda['estado'] === 'listo' || $comanda['estado'] === 'entregado'): ?>
+                                        <?php elseif ($comanda['estado'] === 'pendiente' && $puedeEditar): ?>
+                                            <!-- Comanda pendiente, se pueden agregar más items -->
+                                            <div class="d-flex gap-2">
+                                                <span class="text-info align-self-center">
+                                                    <i class="bi bi-info-circle"></i> Comanda en cocina
+                                                </span>
+                                            </div>
+                                        <?php elseif (in_array($comanda['estado'], ['recibido', 'listo', 'entregado'])): ?>
+                                            <!-- Comanda bloqueada, se puede crear nueva -->
                                             <button id="btn-nueva-comanda" class="btn btn-primary">
-                                                Nueva Comanda
+                                                <i class="bi bi-plus-circle"></i> Nueva Comanda
                                             </button>
                                         <?php endif; ?>
                                     </div>
@@ -259,7 +282,7 @@
                                     PRODUCTOS 
                                     <?php if (!$puedeEditar): ?>
                                         <span class="badge bg-warning text-dark">Comanda no editable</span>
-                                    <?php elseif (in_array($comanda['estado'], ['pendiente', 'recibido'])): ?>
+                                    <?php elseif ($comanda['estado'] === 'pendiente'): ?>
                                         <span class="badge bg-info">Los nuevos items se agregarán como cambios pendientes</span>
                                     <?php endif; ?>
                                 </h5>
@@ -328,7 +351,7 @@
                                         </div>
                                     </div>
                                     
-                                    <!-- Tab Bebidas (similar structure) -->
+                                    <!-- Tab Bebidas -->
                                     <div class="tab-pane fade" id="nav-bebidas" role="tabpanel" aria-labelledby="nav-bebidas-tab">
                                         <div class="row row-cols-1 row-cols-md-3 g-3 p-3">
                                             <?php if (!empty($bebidas)): ?>
@@ -377,7 +400,7 @@
                                         </div>
                                     </div>
                                     
-                                    <!-- Tab Combos (similar structure) -->
+                                    <!-- Tab Combos -->
                                     <div class="tab-pane fade" id="nav-combos" role="tabpanel" aria-labelledby="nav-combos-tab">
                                         <div class="row row-cols-1 row-cols-md-3 g-3 p-3">
                                             <?php if (!empty($combos)): ?>
@@ -467,7 +490,7 @@
                 </div>
                 <div class="modal-body">
                     <p>¿Estás seguro que deseas enviar esta comanda a cocina?</p>
-                    <p class="text-warning"><i class="bi bi-exclamation-triangle"></i> Una vez enviada, los nuevos cambios deberás confirmarlos con el botón "Actualizar en Cocina".</p>
+                    <p class="text-warning"><i class="bi bi-exclamation-triangle"></i> Una vez enviada, podrás agregar más items pero deberás confirmarlos con el botón "Actualizar en Cocina".</p>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
