@@ -165,127 +165,150 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
-  // Función para actualizar vista de comanda
-  function actualizarComanda() {
+  // En el archivo public/assets/js/mozo/comanda.js, actualiza la función actualizarComanda:
+
+function actualizarComanda() {
     const estadoComanda = document.getElementById("estado-comanda")?.value || 'nueva';
     
-    // Si es pendiente o recibido, obtener con pendientes
+    // SIEMPRE actualizar, sin importar el estado
     if (estadoComanda === 'pendiente' || estadoComanda === 'recibido') {
-      fetch(`${BASE_URL}/mozo/obtenerComandaConPendientes/${idComanda}`)
-        .then((response) => response.json())
-        .then((data) => {
-          actualizarTablaComanda(data);
-        })
-        .catch((error) => {
-          console.error("Error al actualizar comanda:", error);
-        });
+        // Para comandas pendientes/recibidas, obtener con pendientes
+        fetch(`${BASE_URL}/mozo/obtenerComandaConPendientes/${idComanda}`)
+            .then((response) => response.json())
+            .then((data) => {
+                console.log('Datos recibidos (con pendientes):', data); // Debug
+                actualizarTablaComanda(data);
+            })
+            .catch((error) => {
+                console.error("Error al actualizar comanda:", error);
+                mostrarAlerta("Error al cargar la comanda", "danger");
+            });
     } else {
-      fetch(`${BASE_URL}/mozo/obtenerComanda/${idComanda}`)
-        .then((response) => response.json())
-        .then((data) => {
-          actualizarTablaComanda({detalles: data.detalles, detallesPendientes: []});
-        })
-        .catch((error) => {
-          console.error("Error al actualizar comanda:", error);
-        });
+        // Para comandas nuevas, obtener normal
+        fetch(`${BASE_URL}/mozo/obtenerComanda/${idComanda}`)
+            .then((response) => response.json())
+            .then((data) => {
+                console.log('Datos recibidos:', data); // Debug
+                actualizarTablaComanda({
+                    detalles: data.detalles || [], 
+                    detallesPendientes: []
+                });
+            })
+            .catch((error) => {
+                console.error("Error al actualizar comanda:", error);
+                mostrarAlerta("Error al cargar la comanda", "danger");
+            });
     }
-  }
+}
 
-  // Función para actualizar la tabla de comanda
-  function actualizarTablaComanda(data) {
+// También actualiza la función actualizarTablaComanda para manejar mejor los casos vacíos:
+function actualizarTablaComanda(data) {
     comandaItems.innerHTML = "";
     let total = 0;
 
-    // Renderizar items confirmados
-    if (data.detalles && data.detalles.length > 0) {
-      data.detalles.forEach((item) => {
-        total += item.precio * item.cantidad;
+    // Verificar que data tenga la estructura correcta
+    const detalles = data.detalles || [];
+    const detallesPendientes = data.detallesPendientes || [];
 
-        const tr = document.createElement("tr");
-        tr.innerHTML = `
-          <td>${item.cantidad}</td>
-          <td>
-            ${item.nombre}
-            ${item.comentario ? `<small class="text-muted d-block">${item.comentario}</small>` : ""}
-          </td>
-          <td>S/ ${(item.precio * item.cantidad).toFixed(2)}</td>
-          ${puedeEditar && document.getElementById("estado-comanda")?.value === 'nueva' ? `
-            <td>
-              <div class="btn-group btn-group-sm">
-                <button class="btn btn-sm btn-outline-secondary comentario-btn" 
-                  data-id-detalle="${item.id_detalle}"
-                  data-comentario="${item.comentario || ""}">
-                  <i class="bi bi-chat-left-text"></i>
-                </button>
-                <button class="btn btn-sm btn-outline-danger eliminar-btn" 
-                  data-id-detalle="${item.id_detalle}"
-                  data-producto-id="${item.id_plato}">
-                  <i class="bi bi-trash"></i>
-                </button>
-              </div>
-            </td>
-          ` : ''}
-        `;
-        comandaItems.appendChild(tr);
-      });
+    console.log('Actualizando tabla - Detalles:', detalles.length, 'Pendientes:', detallesPendientes.length); // Debug
+
+    // Renderizar items confirmados
+    if (detalles.length > 0) {
+        detalles.forEach((item) => {
+            total += item.precio * item.cantidad;
+
+            const tr = document.createElement("tr");
+            tr.innerHTML = `
+                <td>${item.cantidad}</td>
+                <td>
+                    ${item.nombre}
+                    ${item.comentario ? `<small class="text-muted d-block">${item.comentario}</small>` : ""}
+                </td>
+                <td>S/ ${(item.precio * item.cantidad).toFixed(2)}</td>
+                ${puedeEditar && document.getElementById("estado-comanda")?.value === 'nueva' ? `
+                    <td>
+                        <div class="btn-group btn-group-sm">
+                            <button class="btn btn-sm btn-outline-secondary comentario-btn" 
+                                data-id-detalle="${item.id_detalle}"
+                                data-comentario="${item.comentario || ""}">
+                                <i class="bi bi-chat-left-text"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger eliminar-btn" 
+                                data-id-detalle="${item.id_detalle}"
+                                data-producto-id="${item.id_plato}">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                ` : ''}
+            `;
+            comandaItems.appendChild(tr);
+        });
     }
 
     // Renderizar items pendientes si existen
-    if (data.detallesPendientes && data.detallesPendientes.length > 0) {
-      // Agregar separador
-      const trSeparador = document.createElement("tr");
-      trSeparador.className = "seccion-pendientes";
-      trSeparador.innerHTML = `
-        <td colspan="${puedeEditar ? '4' : '3'}" class="text-center py-2 bg-warning bg-opacity-25">
-          <strong>CAMBIOS PENDIENTES DE ENVIAR A COCINA</strong>
-        </td>
-      `;
-      comandaItems.appendChild(trSeparador);
-
-      // Agregar items pendientes
-      data.detallesPendientes.forEach((item) => {
-        total += item.precio * item.cantidad;
-
-        const tr = document.createElement("tr");
-        tr.className = "cambio-pendiente";
-        tr.innerHTML = `
-          <td>
-            ${item.cantidad}
-            <span class="badge badge-pendiente bg-warning text-dark">NUEVO</span>
-          </td>
-          <td>
-            ${item.nombre}
-            ${item.comentario ? `<small class="text-muted d-block">${item.comentario}</small>` : ""}
-          </td>
-          <td>S/ ${(item.precio * item.cantidad).toFixed(2)}</td>
-          ${puedeEditar ? `
-            <td>
-              <button class="btn btn-sm btn-outline-danger eliminar-pendiente-btn" 
-                data-id-detalle="${item.id_detalle}"
-                data-producto-id="${item.id_plato}">
-                <i class="bi bi-x-circle"></i>
-              </button>
+    if (detallesPendientes.length > 0) {
+        // Agregar separador
+        const trSeparador = document.createElement("tr");
+        trSeparador.className = "seccion-pendientes";
+        trSeparador.innerHTML = `
+            <td colspan="${puedeEditar ? '4' : '3'}" class="text-center py-2 bg-warning bg-opacity-25">
+                <strong>CAMBIOS PENDIENTES DE ENVIAR A COCINA</strong>
             </td>
-          ` : ''}
         `;
-        comandaItems.appendChild(tr);
-      });
+        comandaItems.appendChild(trSeparador);
 
-      // Mostrar botones de cambios pendientes
-      mostrarBotonesCambiosPendientes(true);
+        // Agregar items pendientes
+        detallesPendientes.forEach((item) => {
+            total += item.precio * item.cantidad;
+
+            const tr = document.createElement("tr");
+            tr.className = "cambio-pendiente";
+            tr.innerHTML = `
+                <td>
+                    ${item.cantidad}
+                    <span class="badge badge-pendiente bg-warning text-dark">NUEVO</span>
+                </td>
+                <td>
+                    ${item.nombre}
+                    ${item.comentario ? `<small class="text-muted d-block">${item.comentario}</small>` : ""}
+                </td>
+                <td>S/ ${(item.precio * item.cantidad).toFixed(2)}</td>
+                ${puedeEditar ? `
+                    <td>
+                        <button class="btn btn-sm btn-outline-danger eliminar-pendiente-btn" 
+                            data-id-detalle="${item.id_detalle}"
+                            data-producto-id="${item.id_plato}">
+                            <i class="bi bi-x-circle"></i>
+                        </button>
+                    </td>
+                ` : ''}
+            `;
+            comandaItems.appendChild(tr);
+        });
+
+        // Mostrar botones de cambios pendientes
+        mostrarBotonesCambiosPendientes(true);
     } else {
-      mostrarBotonesCambiosPendientes(false);
+        mostrarBotonesCambiosPendientes(false);
     }
 
-    if (data.detalles.length === 0 && (!data.detallesPendientes || data.detallesPendientes.length === 0)) {
-      comandaItems.innerHTML = `<tr><td colspan="${puedeEditar ? '4' : '3'}" class="text-center py-3">No hay items en la comanda</td></tr>`;
+    // Si no hay items en absoluto
+    if (detalles.length === 0 && detallesPendientes.length === 0) {
+        comandaItems.innerHTML = `
+            <tr>
+                <td colspan="${puedeEditar ? '4' : '3'}" class="text-center py-3 text-muted">
+                    No hay productos en la comanda
+                </td>
+            </tr>
+        `;
     }
 
     totalElement.textContent = `S/ ${total.toFixed(2)}`;
 
     // Re-asignar eventos a los nuevos botones
     asignarEventosBotones();
-  }
+}
 
   // Función para mostrar/ocultar botones de cambios pendientes
   function mostrarBotonesCambiosPendientes(mostrar) {

@@ -139,7 +139,7 @@
                         </button>
                     </div>
                     <div class="col text-center">
-                        <button class="menu-icon-btn" id="btnDelivery">
+                        <button class="menu-icon-btn" id="btnDelivery" disabled>
                             <img src="<?= BASE_URL ?>/public/assets/img/Deliviry.png" alt="Delivery">
                             <span>Delivery</span>
                         </button>
@@ -203,10 +203,22 @@
                 ✅ Selección múltiple activada: Selecciona las mesas que deseas juntar.
             </div>
 
+            <!-- En app/views/mozo/inicio.php, reemplaza la sección de mesas (alrededor de línea 285) con este código: -->
+
+
             <div class="row g-3" id="contenedorMesas">
                 <?php if (isset($mesas) && is_array($mesas)): ?>
-                    <?php foreach ($mesas as $mesa): ?>
-                        <?php
+                    <?php
+                    // Array para rastrear nombres de mesas ya mostradas
+                    $mesasMostradas = [];
+
+                    foreach ($mesas as $mesa):
+                        // Saltar si ya mostramos una mesa con este nombre
+                        if (in_array($mesa['nombre'], $mesasMostradas)) {
+                            continue;
+                        }
+                        $mesasMostradas[] = $mesa['nombre'];
+
                         // Determinar color del badge según estado
                         $badgeColor = 'secondary';
                         if ($mesa['estado'] === 'reservado') $badgeColor = 'warning';
@@ -231,7 +243,7 @@
                         // Verificar si es combinada ANTES de usarla
                         $nombreMesa = isset($mesa['nombre']) ? htmlspecialchars($mesa['nombre']) : '';
                         $esCombinada = strpos($nombreMesa, '|') !== false;
-                        ?>
+                    ?>
                         <div class="col-6 col-sm-4 col-md-3">
                             <div class="card mesa-card shadow-sm rounded-4 animate-mesa <?= $clase ?>"
                                 data-id="<?= $mesa['id'] ?>"
@@ -261,7 +273,6 @@
                                     <?php endif; ?>
 
                                     <div class="d-flex gap-2">
-                                        <!-- En la sección del botón cambiar estado -->
                                         <button class="btn btn-outline-secondary btn-sm btn-cambiar-estado"
                                             data-bs-toggle="modal"
                                             data-bs-target="#modalCambiarEstado"

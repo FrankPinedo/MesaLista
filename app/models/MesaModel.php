@@ -16,40 +16,63 @@ class MesaModel
 
     // Agrega una nueva mesa con nombre automático y estado 'libre'
     public function agregarMesa()
-    {
-        // Obtener solo los números de las mesas que siguen el patrón M#
-        $stmt = $this->db->query("SELECT nombre FROM mesas WHERE nombre REGEXP '^M[0-9]+$'");
+{
+    try {
+        $this->db->beginTransaction();
+        
+        // Obtener todas las mesas ordenadas por ID
+        $stmt = $this->db->query("SELECT nombre FROM mesas WHERE nombre REGEXP '^M[0-9]+$' ORDER BY id ASC");
         $nombres = $stmt->fetchAll(PDO::FETCH_COLUMN);
-
+        
+        // Debug: ver qué nombres tenemos
+        error_log("Nombres actuales: " . json_encode($nombres));
+        
         $numerosUsados = [];
         foreach ($nombres as $nombre) {
-            // Extraer solo el número después de 'M'
             if (preg_match('/^M(\d+)$/', $nombre, $match)) {
                 $numerosUsados[] = (int)$match[1];
             }
         }
-
-        // Si no hay mesas, empezar en 1
-        if (empty($numerosUsados)) {
-            $nuevoNumero = 1;
-        } else {
-            // Ordenar y buscar el primer hueco
-            sort($numerosUsados);
-            $nuevoNumero = 1;
-
-            foreach ($numerosUsados as $numero) {
-                if ($numero != $nuevoNumero) {
-                    break;
-                }
-                $nuevoNumero++;
+        
+        // Eliminar duplicados y ordenar
+        $numerosUsados = array_unique($numerosUsados);
+        sort($numerosUsados);
+        
+        // Encontrar el primer número disponible
+        $nuevoNumero = 1;
+        foreach ($numerosUsados as $numero) {
+            if ($numero != $nuevoNumero) {
+                break;
             }
+            $nuevoNumero++;
         }
-
+        
         $nuevoNombre = 'M' . $nuevoNumero;
-
+        
+        // Verificar que no exista ya una mesa con ese nombre
+        $stmt = $this->db->prepare("SELECT COUNT(*) FROM mesas WHERE nombre = ?");
+        $stmt->execute([$nuevoNombre]);
+        if ($stmt->fetchColumn() > 0) {
+            // Si ya existe, buscar el siguiente número disponible
+            $maxStmt = $this->db->query("SELECT MAX(CAST(SUBSTRING(nombre, 2) AS UNSIGNED)) FROM mesas WHERE nombre REGEXP '^M[0-9]+$'");
+            $maxNumero = $maxStmt->fetchColumn();
+            $nuevoNumero = ($maxNumero ? $maxNumero : 0) + 1;
+            $nuevoNombre = 'M' . $nuevoNumero;
+        }
+        
+        error_log("Creando mesa: " . $nuevoNombre);
+        
         $stmt = $this->db->prepare("INSERT INTO mesas (nombre, estado) VALUES (?, 'libre')");
         $stmt->execute([$nuevoNombre]);
+        
+        $this->db->commit();
+        return true;
+    } catch (Exception $e) {
+        $this->db->rollBack();
+        error_log("Error al agregar mesa: " . $e->getMessage());
+        return false;
     }
+}
 
     public function juntarMesas($id1, $id2)
     {
@@ -152,12 +175,45 @@ class MesaModel
     }
 
    
-    // Obtener todas las mesas
-    public function obtenerMesas()
-    {
-        $stmt = $this->db->query("SELECT DISTINCT * FROM mesas ORDER BY CAST(SUBSTRING(nombre, 2) AS UNSIGNED)");
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    // En el archivo app/models/MesaModel.php, actualiza el método obtenerMesas:
+
+public function obtenerMesas()
+{
+    try {
+        // Consulta simple sin DISTINCT y con ordenamiento correcto
+        $sql = "SELECT id, nombre, estado FROM mesas ORDER BY id ASC";
+        $stmt = $this->db->query($sql);
+        $mesas = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        // Eliminar duplicados por nombre (por si acaso)
+        $mesasUnicas = [];
+        $nombresVistos = [];
+        
+        foreach ($mesas as $mesa) {
+            if (!in_array($mesa['nombre'], $nombresVistos)) {
+                $mesasUnicas[] = $mesa;
+                $nombresVistos[] = $mesa['nombre'];
+            }
+        }
+        
+        // Ordenar por número extraído del nombre
+        usort($mesasUnicas, function($a, $b) {
+            // Extraer números de los nombres (M1, M2, etc.)
+            preg_match('/\d+/', $a['nombre'], $numA);
+            preg_match('/\d+/', $b['nombre'], $numB);
+            
+            $numeroA = isset($numA[0]) ? intval($numA[0]) : 0;
+            $numeroB = isset($numB[0]) ? intval($numB[0]) : 0;
+            
+            return $numeroA - $numeroB;
+        });
+        
+        return $mesasUnicas;
+    } catch (Exception $e) {
+        error_log("Error al obtener mesas: " . $e->getMessage());
+        return [];
     }
+}
 
     public function separarMesa($nombreCombinado)
     {

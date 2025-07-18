@@ -49,103 +49,111 @@ class MozoController
         require_once __DIR__ . '/../views/mozo/inicio.php';
     }
 
-    public function comanda($mesaId = null)
-    {
-        $usuario = $this->usuario;
+    // En el archivo app/controllers/MozoController.php, actualiza el método comanda:
 
-        // Si es delivery/para llevar
-        if (!$mesaId || $mesaId === 'delivery') {
-            $comandaId = $this->comandaModel->crearComandaDelivery($usuario['id_user']);
+public function comanda($mesaId = null)
+{
+    $usuario = $this->usuario;
+
+    // Si es delivery/para llevar
+    if (!$mesaId || $mesaId === 'delivery') {
+        $comandaId = $this->comandaModel->crearComandaDelivery($usuario['id_user']);
+        $comanda = $this->comandaModel->obtenerComandaPorId($comandaId);
+        $mesa = 'Delivery/Para Llevar';
+        $mesaId = null;
+    } else {
+        // Verificar si la mesa existe
+        $mesa = $this->mesaModel->obtenerMesaPorId($mesaId);
+        if (!$mesa) {
+            header("Location: " . BASE_URL . "/mozo");
+            exit();
+        }
+
+        // Buscar comandas activas de la mesa
+        $comandasActivas = $this->comandaModel->obtenerComandasActivasPorMesa($mesaId);
+
+        // Buscar una comanda editable (nueva o pendiente)
+        $comandaEditable = null;
+        foreach ($comandasActivas as $cmd) {
+            if (in_array($cmd['estado'], ['nueva', 'pendiente'])) {
+                $comandaEditable = $cmd;
+                break;
+            }
+        }
+
+        if ($comandaEditable) {
+            // Usar la comanda editable existente
+            $comanda = $comandaEditable;
+        } else {
+            // No hay comanda editable, crear una nueva
+            $comandaId = $this->comandaModel->crearComanda($mesaId, $usuario['id_user']);
             $comanda = $this->comandaModel->obtenerComandaPorId($comandaId);
-            $mesa = 'Delivery/Para Llevar';
-            $mesaId = null;
-        } else {
-            // Verificar si la mesa existe
-            $mesa = $this->mesaModel->obtenerMesaPorId($mesaId);
-            if (!$mesa) {
-                header("Location: " . BASE_URL . "/mozo");
-                exit();
+            
+            // Solo cambiar estado de mesa si no hay otras comandas activas
+            if (empty($comandasActivas)) {
+                $this->mesaModel->cambiarEstado($mesaId, 'ocupada');
             }
-
-            // Buscar comandas activas de la mesa
-            $comandasActivas = $this->comandaModel->obtenerComandasActivasPorMesa($mesaId);
-
-            // Buscar una comanda editable (nueva o pendiente)
-            $comandaEditable = null;
-            foreach ($comandasActivas as $cmd) {
-                if (in_array($cmd['estado'], ['nueva', 'pendiente'])) {
-                    $comandaEditable = $cmd;
-                    break;
-                }
-            }
-
-            if ($comandaEditable) {
-                // Usar la comanda editable existente
-                $comanda = $comandaEditable;
-            } else {
-                // No hay comanda editable, crear una nueva
-                $comandaId = $this->comandaModel->crearComanda($mesaId, $usuario['id_user']);
-                $comanda = $this->comandaModel->obtenerComandaPorId($comandaId);
-                
-                // Solo cambiar estado de mesa si no hay otras comandas activas
-                if (empty($comandasActivas)) {
-                    $this->mesaModel->cambiarEstado($mesaId, 'ocupada');
-                }
-            }
-
-            $mesa = $mesa['nombre'];
         }
 
-        // Determinar si se puede editar - INCLUYE 'pendiente'
-        $puedeEditar = in_array($comanda['estado'], ['nueva', 'pendiente']);
+        $mesa = $mesa['nombre'];
+    }
 
-        // Obtener detalles según el estado
-        if (in_array($comanda['estado'], ['pendiente', 'recibido'])) {
-            $detallesConPendientes = $this->comandaModel->obtenerDetallesComandaConPendientes($comanda['id']);
-            $detalles = $detallesConPendientes['confirmados'];
-            $detallesPendientes = $detallesConPendientes['pendientes'];
-            $tieneCambiosPendientes = $this->comandaModel->tieneCambiosPendientes($comanda['id']);
-        } else {
-            $detalles = $this->comandaModel->obtenerDetallesComandaCompletos($comanda['id']);
-            $detallesPendientes = [];
-            $tieneCambiosPendientes = false;
-        }
+    // Determinar si se puede editar
+    $puedeEditar = in_array($comanda['estado'], ['nueva', 'pendiente']);
 
-        // Calcular total
-        $total = 0;
-        foreach ($detalles as $detalle) {
+    // IMPORTANTE: Siempre obtener los detalles, independientemente del estado
+    $detalles = [];
+    $detallesPendientes = [];
+    $tieneCambiosPendientes = false;
+
+    if (in_array($comanda['estado'], ['pendiente', 'recibido'])) {
+        // Para comandas pendientes o recibidas, obtener tanto confirmados como pendientes
+        $detallesConPendientes = $this->comandaModel->obtenerDetallesComandaConPendientes($comanda['id']);
+        $detalles = $detallesConPendientes['confirmados'] ?? [];
+        $detallesPendientes = $detallesConPendientes['pendientes'] ?? [];
+        $tieneCambiosPendientes = $this->comandaModel->tieneCambiosPendientes($comanda['id']);
+    } else {
+        // Para comandas nuevas, obtener todos los detalles
+        $detalles = $this->comandaModel->obtenerDetallesComandaCompletos($comanda['id']);
+        $detallesPendientes = [];
+        $tieneCambiosPendientes = false;
+    }
+
+    // Calcular total
+    $total = 0;
+    foreach ($detalles as $detalle) {
+        $total += $detalle['precio'] * $detalle['cantidad'];
+    }
+    if (!empty($detallesPendientes)) {
+        foreach ($detallesPendientes as $detalle) {
             $total += $detalle['precio'] * $detalle['cantidad'];
         }
-        if (!empty($detallesPendientes)) {
-            foreach ($detallesPendientes as $detalle) {
-                $total += $detalle['precio'] * $detalle['cantidad'];
-            }
-        }
-
-        // Obtener productos disponibles
-        require_once __DIR__ . '/../models/ProductoModel.php';
-        $productoModel = new ProductoModel();
-        $platos = $productoModel->obtenerProductosPorTipo(2, true); // tipo 2 = platos
-        $bebidas = $productoModel->obtenerProductosPorTipo(1, true); // tipo 1 = bebidas
-        $combos = $productoModel->obtenerProductosPorTipo(4, true); // tipo 4 = combos
-
-        // Obtener comandas anteriores de la mesa
-        $comandasAnteriores = [];
-        $totalMesa = $total;
-        if ($mesaId) {
-            $todasLasComandas = $this->comandaModel->obtenerComandasActivasPorMesa($mesaId);
-            foreach ($todasLasComandas as $cmd) {
-                if ($cmd['id'] != $comanda['id']) {
-                    $comandasAnteriores[] = $cmd;
-                }
-            }
-            $totalMesa = $this->comandaModel->obtenerTotalMesa($mesaId);
-        }
-
-        $numeroComanda = count($comandasAnteriores) + 1;
-
-        require_once __DIR__ . '/../views/mozo/comanda.php';
     }
+
+    // Obtener productos disponibles
+    require_once __DIR__ . '/../models/ProductoModel.php';
+    $productoModel = new ProductoModel();
+    $platos = $productoModel->obtenerProductosPorTipo(2, true); // tipo 2 = platos
+    $bebidas = $productoModel->obtenerProductosPorTipo(1, true); // tipo 1 = bebidas
+    $combos = $productoModel->obtenerProductosPorTipo(4, true); // tipo 4 = combos
+
+    // Obtener comandas anteriores de la mesa
+    $comandasAnteriores = [];
+    $totalMesa = $total;
+    if ($mesaId) {
+        $todasLasComandas = $this->comandaModel->obtenerComandasActivasPorMesa($mesaId);
+        foreach ($todasLasComandas as $cmd) {
+            if ($cmd['id'] != $comanda['id']) {
+                $comandasAnteriores[] = $cmd;
+            }
+        }
+        $totalMesa = $this->comandaModel->obtenerTotalMesa($mesaId);
+    }
+
+    $numeroComanda = count($comandasAnteriores) + 1;
+
+    require_once __DIR__ . '/../views/mozo/comanda.php';
+}
 
     public function agregarItem()
     {
@@ -188,6 +196,9 @@ class MozoController
         }
         exit();
     }
+
+    
+
 
     public function obtenerStockActualizado()
     {
@@ -322,14 +333,32 @@ class MozoController
         exit();
     }
 
-    public function obtenerComandaConPendientes($comandaId)
-    {
+    // Agregar este método al archivo app/controllers/MozoController.php:
+
+public function obtenerComandaConPendientes($comandaId)
+{
+    header('Content-Type: application/json');
+    
+    try {
+        // Obtener detalles separados (confirmados y pendientes)
         $resultado = $this->comandaModel->obtenerDetallesComandaConPendientes($comandaId);
         
-        echo json_encode($resultado);
-        exit();
+        // Asegurarse de que siempre devuelva arrays
+        $response = [
+            'detalles' => $resultado['confirmados'] ?? [],
+            'detallesPendientes' => $resultado['pendientes'] ?? []
+        ];
+        
+        echo json_encode($response);
+    } catch (Exception $e) {
+        echo json_encode([
+            'detalles' => [],
+            'detallesPendientes' => [],
+            'error' => $e->getMessage()
+        ]);
     }
-
+    exit();
+}
     public function enviarComanda()
     {
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
